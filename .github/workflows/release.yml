@@ -22,9 +22,20 @@ jobs:
       with:
         xcode-version: latest-stable
 
-    - name: Build release binary
+    - name: Build release binary (ARM64)
       run: |
-        swift build -c release --arch arm64 --arch x86_64
+        swift build -c release --arch arm64
+
+    - name: Build release binary (x86_64)
+      run: |
+        swift build -c release --arch x86_64
+
+    - name: Create universal binary
+      run: |
+        lipo -create \
+          .build/arm64-apple-macosx/release/BrewBar \
+          .build/x86_64-apple-macosx/release/BrewBar \
+          -output BrewBar-universal
 
     - name: Create app bundle
       run: |
@@ -38,8 +49,9 @@ jobs:
         mkdir -p "${MACOS_DIR}"
         mkdir -p "${RESOURCES_DIR}"
 
-        # Copy binary
-        cp .build/release/BrewBar "${MACOS_DIR}/"
+        # Copy universal binary
+        cp BrewBar-universal "${MACOS_DIR}/BrewBar"
+        chmod +x "${MACOS_DIR}/BrewBar"
 
         # Create Info.plist
         cat > "${CONTENTS_DIR}/Info.plist" << EOF
