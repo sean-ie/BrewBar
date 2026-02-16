@@ -1,0 +1,96 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: Build Release
+    runs-on: macos-14
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
+
+    - name: Build release binary
+      run: |
+        swift build -c release --arch arm64 --arch x86_64
+
+    - name: Create app bundle
+      run: |
+        APP_NAME="BrewBar"
+        APP_DIR="${APP_NAME}.app"
+        CONTENTS_DIR="${APP_DIR}/Contents"
+        MACOS_DIR="${CONTENTS_DIR}/MacOS"
+        RESOURCES_DIR="${CONTENTS_DIR}/Resources"
+
+        # Create bundle structure
+        mkdir -p "${MACOS_DIR}"
+        mkdir -p "${RESOURCES_DIR}"
+
+        # Copy binary
+        cp .build/release/BrewBar "${MACOS_DIR}/"
+
+        # Create Info.plist
+        cat > "${CONTENTS_DIR}/Info.plist" << EOF
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>CFBundleExecutable</key>
+            <string>BrewBar</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.brewbar.app</string>
+            <key>CFBundleName</key>
+            <string>BrewBar</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>CFBundleShortVersionString</key>
+            <string>${GITHUB_REF#refs/tags/v}</string>
+            <key>CFBundleVersion</key>
+            <string>${GITHUB_REF#refs/tags/v}</string>
+            <key>LSMinimumSystemVersion</key>
+            <string>14.0</string>
+            <key>LSUIElement</key>
+            <true/>
+            <key>NSHighResolutionCapable</key>
+            <true/>
+        </dict>
+        </plist>
+        EOF
+
+        # Create DMG
+        hdiutil create -volname "${APP_NAME}" -srcfolder "${APP_DIR}" -ov -format UDZO "${APP_NAME}.dmg"
+
+    - name: Extract version from tag
+      id: version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          BrewBar.dmg
+        name: Release ${{ steps.version.outputs.VERSION }}
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: BrewBar-${{ steps.version.outputs.VERSION }}
+        path: BrewBar.dmg
+        retention-days: 30

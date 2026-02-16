@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: macos-14
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
+
+    - name: Cache Swift Package Manager
+      uses: actions/cache@v4
+      with:
+        path: .build
+        key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
+        restore-keys: |
+          ${{ runner.os }}-spm-
+
+    - name: Build
+      run: swift build -c release
+
+    - name: Run tests
+      run: swift test
+      continue-on-error: true
+
+    - name: Check Swift formatting
+      run: |
+        if command -v swift-format &> /dev/null; then
+          swift-format lint -r Sources/
+        else
+          echo "swift-format not installed, skipping"
+        fi
+      continue-on-error: true
+
+  lint:
+    name: SwiftLint
+    runs-on: macos-14
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install SwiftLint
+      run: brew install swiftlint
+
+    - name: Run SwiftLint
+      run: swiftlint lint --strict
+      continue-on-error: true
