@@ -114,14 +114,14 @@ struct OutdatedFormulaJSON: Decodable, Sendable {
 
 struct OutdatedCaskJSON: Decodable, Sendable {
     let name: String
-    let installed_versions: String
+    let installed_versions: [String]
     let current_version: String
 
     func toCask() -> Cask {
         Cask(
             token: name,
             name: name,
-            version: installed_versions,
+            version: installed_versions.first ?? "unknown",
             latestVersion: current_version,
             description: nil,
             homepage: nil,
