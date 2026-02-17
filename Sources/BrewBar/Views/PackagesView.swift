@@ -10,6 +10,11 @@ struct PackagesView: View {
     let formulae: [Formula]
     let casks: [Cask]
     @Binding var filter: PackageFilter
+    var searchResults: (formulae: [String], casks: [String]) = ([], [])
+    var isSearching: Bool = false
+    var onSearchBrew: ((String) -> Void)?
+    var onClearSearch: (() -> Void)?
+    var onInstall: ((String, Bool) -> Void)?
     @State private var searchText = ""
 
     private var filteredFormulae: [Formula] {
@@ -114,14 +119,68 @@ struct PackagesView: View {
                         }
                     }
 
-                    if filteredFormulae.isEmpty && filteredCasks.isEmpty {
+                    if filteredFormulae.isEmpty && filteredCasks.isEmpty && !searchText.isEmpty && searchResults.formulae.isEmpty && searchResults.casks.isEmpty && !isSearching {
+                        VStack(spacing: 8) {
+                            Text("No installed packages match")
+                                .foregroundStyle(.secondary)
+                            if let onSearchBrew {
+                                Button("Search Homebrew for \"\(searchText)\"") {
+                                    onSearchBrew(searchText)
+                                }
+                                .font(.caption)
+                                .buttonStyle(.borderless)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                    } else if filteredFormulae.isEmpty && filteredCasks.isEmpty && searchResults.formulae.isEmpty && searchResults.casks.isEmpty {
                         Text("No packages found")
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity)
                             .padding()
                     }
+
+                    // Remote search results
+                    if isSearching {
+                        HStack {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text("Searching Homebrew...")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                    }
+
+                    if !searchResults.formulae.isEmpty {
+                        Section {
+                            ForEach(searchResults.formulae, id: \.self) { name in
+                                SearchResultRow(name: name, isCask: false, onInstall: onInstall)
+                                    .padding(.horizontal, 8)
+                                Divider()
+                            }
+                        } header: {
+                            sectionHeader("Available Formulae (\(searchResults.formulae.count))")
+                        }
+                    }
+
+                    if !searchResults.casks.isEmpty {
+                        Section {
+                            ForEach(searchResults.casks, id: \.self) { name in
+                                SearchResultRow(name: name, isCask: true, onInstall: onInstall)
+                                    .padding(.horizontal, 8)
+                                Divider()
+                            }
+                        } header: {
+                            sectionHeader("Available Casks (\(searchResults.casks.count))")
+                        }
+                    }
                 }
             }
+        }
+        .onChange(of: searchText) {
+            onClearSearch?()
         }
     }
 
@@ -134,5 +193,35 @@ struct PackagesView: View {
             .padding(.vertical, 4)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(.bar)
+    }
+}
+
+private struct SearchResultRow: View {
+    let name: String
+    let isCask: Bool
+    var onInstall: ((String, Bool) -> Void)?
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                Text(isCask ? "Cask" : "Formula")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            if let onInstall {
+                Button {
+                    onInstall(name, isCask)
+                } label: {
+                    Label("Install", systemImage: "arrow.down.circle")
+                        .font(.caption)
+                }
+                .buttonStyle(.borderless)
+            }
+        }
+        .padding(.vertical, 4)
     }
 }

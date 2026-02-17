@@ -1,6 +1,11 @@
 import Foundation
 import SwiftUI
 
+struct UninstallConfirmation {
+    let packages: [String]
+    let dependents: [String]
+}
+
 @MainActor
 @Observable
 final class BrewViewModel {
@@ -9,6 +14,17 @@ final class BrewViewModel {
     var error: String?
     var actionInProgress: String?
     var lastActionOutput: String?
+
+    // Search & install state
+    var searchResults: (formulae: [String], casks: [String]) = ([], [])
+    var isSearching = false
+
+    // Uninstall confirmation state
+    var confirmingUninstall: UninstallConfirmation?
+    var showUninstallConfirmation: Bool {
+        get { confirmingUninstall != nil }
+        set { if !newValue { confirmingUninstall = nil } }
+    }
 
     private let service = BrewDataService()
     private var refreshTimer: Timer?
@@ -63,19 +79,94 @@ final class BrewViewModel {
         }
     }
 
+    // MARK: - Search & Install
+
+    func searchBrewPackages(_ query: String) {
+        guard !query.isEmpty else {
+            searchResults = ([], [])
+            isSearching = false
+            return
+        }
+        isSearching = true
+        Task {
+            do {
+                let results = try await service.searchPackages(query)
+                // Filter out already-installed packages
+                let installedFormulae = Set(info.formulae.map(\.name))
+                let installedCasks = Set(info.casks.map(\.token))
+                searchResults = (
+                    formulae: results.formulae.filter { !installedFormulae.contains($0) },
+                    casks: results.casks.filter { !installedCasks.contains($0) }
+                )
+            } catch {
+                self.error = error.localizedDescription
+                searchResults = ([], [])
+            }
+            isSearching = false
+        }
+    }
+
+    func clearSearchResults() {
+        searchResults = ([], [])
+    }
+
+    func install(package name: String, isCask: Bool) {
+        performAction("Installing \(name)...") {
+            try await self.service.install(package: name, isCask: isCask)
+        }
+    }
+
     // MARK: - Uninstall actions
 
     func uninstall(package name: String) {
+        let deps = dependentsOf(name)
+        if deps.isEmpty {
+            forceUninstall(package: name)
+        } else {
+            confirmingUninstall = UninstallConfirmation(packages: [name], dependents: deps)
+        }
+    }
+
+    func uninstallAll(packages names: [String]) {
+        let allDeps = Set(names.flatMap { dependentsOf($0) }).subtracting(names).sorted()
+        if allDeps.isEmpty {
+            forceUninstallAll(packages: names)
+        } else {
+            confirmingUninstall = UninstallConfirmation(packages: names, dependents: allDeps)
+        }
+    }
+
+    func confirmUninstall() {
+        guard let confirmation = confirmingUninstall else { return }
+        confirmingUninstall = nil
+        if confirmation.packages.count == 1 {
+            forceUninstall(package: confirmation.packages[0])
+        } else {
+            forceUninstallAll(packages: confirmation.packages)
+        }
+    }
+
+    private func forceUninstall(package name: String) {
         performAction("Uninstalling \(name)...") {
             try await self.service.uninstall(package: name, ignoreDependencies: true)
         }
     }
 
-    func uninstallAll(packages names: [String]) {
+    private func forceUninstallAll(packages names: [String]) {
         let label = names.count == 1 ? names[0] : "\(names.count) packages"
         performAction("Uninstalling \(label)...") {
             try await self.service.uninstall(packages: names, ignoreDependencies: true)
         }
+    }
+
+    private func dependentsOf(_ name: String) -> [String] {
+        var reverseDeps: [String: [String]] = [:]
+        for formula in info.formulae {
+            for dep in formula.dependencies {
+                reverseDeps[dep, default: []].append(formula.name)
+            }
+        }
+        return reverseDeps[name, default: []].sorted()
     }
 
     // MARK: - Service actions

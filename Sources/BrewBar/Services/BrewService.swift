@@ -92,6 +92,30 @@ actor BrewDataService {
         try await process.runString(["services", "restart", name])
     }
 
+    // MARK: - Search & Install
+
+    func searchPackages(_ query: String) async throws -> (formulae: [String], casks: [String]) {
+        async let formulaeOutput = process.runString(["search", "--formula", query])
+        async let casksOutput = process.runString(["search", "--cask", query])
+
+        let (fOut, cOut) = try await (formulaeOutput, casksOutput)
+
+        let formulae = fOut.components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        let casks = cOut.components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+
+        return (formulae, casks)
+    }
+
+    func install(package name: String, isCask: Bool) async throws -> String {
+        var args = ["install", name]
+        if isCask { args.insert("--cask", at: 1) }
+        return try await process.runString(args)
+    }
+
     // MARK: - Uninstall
 
     func uninstall(package name: String, ignoreDependencies: Bool = false) async throws -> String {

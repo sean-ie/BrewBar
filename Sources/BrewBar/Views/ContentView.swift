@@ -125,12 +125,20 @@ struct ContentView: View {
                         }
                         .buttonStyle(.borderless)
                     }
-                    ScrollView {
-                        Text(output)
-                            .font(.system(size: 10, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .textSelection(.enabled)
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            Text(output)
+                                .font(.system(size: 10, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .textSelection(.enabled)
+                            Color.clear
+                                .frame(height: 0)
+                                .id("bottom")
+                        }
+                        .onAppear {
+                            proxy.scrollTo("bottom")
+                        }
                     }
                     .frame(maxHeight: 80)
                 }
@@ -163,7 +171,18 @@ struct ContentView: View {
                     PackagesView(
                         formulae: viewModel.info.formulae,
                         casks: viewModel.info.casks,
-                        filter: $packageFilter
+                        filter: $packageFilter,
+                        searchResults: viewModel.searchResults,
+                        isSearching: viewModel.isSearching,
+                        onSearchBrew: { query in
+                            viewModel.searchBrewPackages(query)
+                        },
+                        onClearSearch: {
+                            viewModel.clearSearchResults()
+                        },
+                        onInstall: { name, isCask in
+                            viewModel.install(package: name, isCask: isCask)
+                        }
                     )
                 case .outdated:
                     OutdatedView(
@@ -192,6 +211,23 @@ struct ContentView: View {
         .frame(width: 360, height: 420)
         .onAppear {
             viewModel.refresh()
+        }
+        .alert(
+            "Dependency Warning",
+            isPresented: $viewModel.showUninstallConfirmation
+        ) {
+            Button("Cancel", role: .cancel) { }
+            Button("Uninstall Anyway", role: .destructive) {
+                viewModel.confirmUninstall()
+            }
+        } message: {
+            if let confirmation = viewModel.confirmingUninstall {
+                let pkgLabel = confirmation.packages.count == 1
+                    ? confirmation.packages[0]
+                    : "\(confirmation.packages.count) packages"
+                let depList = confirmation.dependents.joined(separator: ", ")
+                Text("Uninstalling \(pkgLabel) may break \(depList), which depend\(confirmation.dependents.count == 1 ? "s" : "") on \(confirmation.packages.count == 1 ? "it" : "them").")
+            }
         }
     }
 }
