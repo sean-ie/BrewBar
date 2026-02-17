@@ -6,6 +6,11 @@ struct UninstallConfirmation {
     let dependents: [String]
 }
 
+struct CleanupPreview {
+    let fileCount: Int
+    let details: String
+}
+
 @MainActor
 @Observable
 final class BrewViewModel {
@@ -25,6 +30,10 @@ final class BrewViewModel {
         get { confirmingUninstall != nil }
         set { if !newValue { confirmingUninstall = nil } }
     }
+
+    // Cleanup state
+    var cleanupPreview: CleanupPreview?
+    var showNothingToClean = false
 
     private let service = BrewDataService()
     private var refreshTimer: Timer?
@@ -167,6 +176,52 @@ final class BrewViewModel {
             }
         }
         return reverseDeps[name, default: []].sorted()
+    }
+
+    // MARK: - Pin/Unpin
+
+    func pin(package name: String) {
+        performAction("Pinning \(name)...") {
+            try await self.service.pin(package: name)
+        }
+    }
+
+    func unpin(package name: String) {
+        performAction("Unpinning \(name)...") {
+            try await self.service.unpin(package: name)
+        }
+    }
+
+    // MARK: - Cleanup
+
+    func previewCleanup() {
+        actionInProgress = "Checking for cleanable files..."
+        Task {
+            do {
+                let output = try await service.cleanupDryRun()
+                let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
+                if trimmed.isEmpty {
+                    showNothingToClean = true
+                } else {
+                    let lines = trimmed.components(separatedBy: .newlines)
+                        .filter { !$0.isEmpty }
+                    cleanupPreview = CleanupPreview(
+                        fileCount: lines.count,
+                        details: trimmed
+                    )
+                }
+            } catch {
+                self.error = error.localizedDescription
+            }
+            actionInProgress = nil
+        }
+    }
+
+    func confirmCleanup() {
+        cleanupPreview = nil
+        performAction("Cleaning up...") {
+            try await self.service.cleanup()
+        }
     }
 
     // MARK: - Service actions

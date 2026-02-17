@@ -116,6 +116,26 @@ actor BrewDataService {
         return try await process.runString(args)
     }
 
+    // MARK: - Pin/Unpin
+
+    func pin(package name: String) async throws -> String {
+        try await process.runString(["pin", name])
+    }
+
+    func unpin(package name: String) async throws -> String {
+        try await process.runString(["unpin", name])
+    }
+
+    // MARK: - Cleanup
+
+    func cleanupDryRun() async throws -> String {
+        try await process.runString(["cleanup", "--prune=all", "-n"])
+    }
+
+    func cleanup() async throws -> String {
+        try await process.runString(["cleanup", "--prune=all"])
+    }
+
     // MARK: - Uninstall
 
     func uninstall(package name: String, ignoreDependencies: Bool = false) async throws -> String {

@@ -137,13 +137,75 @@ struct ContentView: View {
                                 .id("bottom")
                         }
                         .onAppear {
-                            proxy.scrollTo("bottom")
+                            proxy.scrollTo("bottom", anchor: .bottom)
+                        }
+                        .onChange(of: output) {
+                            proxy.scrollTo("bottom", anchor: .bottom)
                         }
                     }
                     .frame(maxHeight: 80)
                 }
                 .padding(8)
                 .background(.green.opacity(0.05))
+            }
+
+            // Nothing to clean banner
+            if viewModel.showNothingToClean {
+                HStack(spacing: 6) {
+                    Image(systemName: "sparkles")
+                        .foregroundStyle(.green)
+                        .font(.caption)
+                    Text("Already clean — nothing to remove.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button {
+                        viewModel.showNothingToClean = false
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.caption2)
+                    }
+                    .buttonStyle(.borderless)
+                }
+                .padding(6)
+                .background(.green.opacity(0.05))
+            }
+
+            // Cleanup preview
+            if let preview = viewModel.cleanupPreview {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Image(systemName: "trash.circle")
+                            .foregroundStyle(.orange)
+                            .font(.caption)
+                        Text("\(preview.fileCount) item\(preview.fileCount == 1 ? "" : "s") to remove")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                        Spacer()
+                        Button("Clean Up") {
+                            viewModel.confirmCleanup()
+                        }
+                        .font(.caption)
+                        .controlSize(.small)
+                        Button {
+                            viewModel.cleanupPreview = nil
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.caption2)
+                        }
+                        .buttonStyle(.borderless)
+                    }
+                    ScrollView {
+                        Text(preview.details)
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .textSelection(.enabled)
+                    }
+                    .frame(maxHeight: 80)
+                }
+                .padding(8)
+                .background(.orange.opacity(0.05))
             }
 
             Divider()
@@ -165,6 +227,9 @@ struct ContentView: View {
                         },
                         onUninstallAll: { names in
                             viewModel.uninstallAll(packages: names)
+                        },
+                        onCleanup: {
+                            viewModel.previewCleanup()
                         }
                     )
                 case .packages:
@@ -182,6 +247,15 @@ struct ContentView: View {
                         },
                         onInstall: { name, isCask in
                             viewModel.install(package: name, isCask: isCask)
+                        },
+                        onUninstall: { name in
+                            viewModel.uninstall(package: name)
+                        },
+                        onPin: { name in
+                            viewModel.pin(package: name)
+                        },
+                        onUnpin: { name in
+                            viewModel.unpin(package: name)
                         }
                     )
                 case .outdated:

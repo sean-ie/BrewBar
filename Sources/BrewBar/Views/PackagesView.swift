@@ -15,6 +15,9 @@ struct PackagesView: View {
     var onSearchBrew: ((String) -> Void)?
     var onClearSearch: (() -> Void)?
     var onInstall: ((String, Bool) -> Void)?
+    var onUninstall: ((String) -> Void)?
+    var onPin: ((String) -> Void)?
+    var onUnpin: ((String) -> Void)?
     @State private var searchText = ""
 
     private var filteredFormulae: [Formula] {
@@ -86,7 +89,11 @@ struct PackagesView: View {
                                     tap: formula.tap,
                                     dependencies: formula.dependencies,
                                     buildDependencies: formula.buildDependencies,
-                                    autoUpdates: false
+                                    autoUpdates: false,
+                                    pinned: formula.pinned,
+                                    onUninstall: onUninstall,
+                                    onPin: onPin,
+                                    onUnpin: onUnpin
                                 )
                                 .padding(.horizontal, 8)
                                 Divider()
@@ -109,7 +116,8 @@ struct PackagesView: View {
                                     tap: cask.tap,
                                     dependencies: [],
                                     buildDependencies: [],
-                                    autoUpdates: cask.autoUpdates
+                                    autoUpdates: cask.autoUpdates,
+                                    onUninstall: onUninstall
                                 )
                                 .padding(.horizontal, 8)
                                 Divider()

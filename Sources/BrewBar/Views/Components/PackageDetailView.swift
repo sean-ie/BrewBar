@@ -11,6 +11,10 @@ struct PackageDetailView: View {
     let dependencies: [String]
     let buildDependencies: [String]
     let autoUpdates: Bool
+    var pinned: Bool = false
+    var onUninstall: ((String) -> Void)?
+    var onPin: ((String) -> Void)?
+    var onUnpin: ((String) -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -21,6 +25,9 @@ struct PackageDetailView: View {
                     text: isCask ? "cask" : "formula",
                     color: isCask ? .purple : .blue
                 )
+                if pinned {
+                    StatusBadge(text: "pinned", color: .orange)
+                }
             }
 
             Text("v\(version)")
@@ -71,6 +78,41 @@ struct PackageDetailView: View {
                         .foregroundStyle(.secondary)
                     Text(buildDependencies.joined(separator: ", "))
                         .font(.caption)
+                }
+            }
+
+            if onUninstall != nil || onPin != nil || onUnpin != nil {
+                Divider()
+                HStack(spacing: 8) {
+                    if !isCask {
+                        if pinned, let onUnpin {
+                            Button {
+                                onUnpin(name)
+                            } label: {
+                                Label("Unpin", systemImage: "pin.slash")
+                                    .font(.caption)
+                            }
+                            .buttonStyle(.borderless)
+                        } else if let onPin {
+                            Button {
+                                onPin(name)
+                            } label: {
+                                Label("Pin", systemImage: "pin")
+                                    .font(.caption)
+                            }
+                            .buttonStyle(.borderless)
+                        }
+                    }
+                    Spacer()
+                    if let onUninstall {
+                        Button(role: .destructive) {
+                            onUninstall(name)
+                        } label: {
+                            Label("Uninstall", systemImage: "trash")
+                                .font(.caption)
+                        }
+                        .buttonStyle(.borderless)
+                    }
                 }
             }
         }

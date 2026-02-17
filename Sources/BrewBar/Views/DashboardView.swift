@@ -5,6 +5,7 @@ struct DashboardView: View {
     let onNavigate: (Tab, PackageFilter?) -> Void
     var onUninstall: ((String) -> Void)?
     var onUninstallAll: (([String]) -> Void)?
+    var onCleanup: (() -> Void)?
 
     private var detectedTools: [(name: String, version: String, icon: String, path: String?)] {
         let toolDefs: [(name: String, icon: String)] = [
@@ -62,32 +63,54 @@ struct DashboardView: View {
                 ) { onNavigate(.services, nil) }
             }
 
-            // Info card
-            Button {
-                onNavigate(.info, nil)
-            } label: {
-                HStack {
-                    Image(systemName: "info.circle")
-                        .font(.title3)
-                        .foregroundStyle(.teal)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text("Homebrew Info")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                        Text(info.brewConfig["HOMEBREW_VERSION"].map { "v\($0)" } ?? "View configuration")
+            // Info & Cleanup row
+            HStack(spacing: 8) {
+                Button {
+                    onNavigate(.info, nil)
+                } label: {
+                    HStack {
+                        Image(systemName: "info.circle")
+                            .font(.title3)
+                            .foregroundStyle(.teal)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("Homebrew Info")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                            Text(info.brewConfig["HOMEBREW_VERSION"].map { "v\($0)" } ?? "View configuration")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
                             .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.tertiary)
                     }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                    .padding(8)
+                    .background(.quaternary.opacity(0.5))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
-                .padding(8)
-                .background(.quaternary.opacity(0.5))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .buttonStyle(.plain)
+
+                if let onCleanup {
+                    Button {
+                        onCleanup()
+                    } label: {
+                        VStack(spacing: 2) {
+                            Image(systemName: "trash.circle")
+                                .font(.title3)
+                                .foregroundStyle(.red)
+                            Text("Cleanup")
+                                .font(.caption2)
+                                .fontWeight(.medium)
+                        }
+                        .padding(8)
+                        .background(.quaternary.opacity(0.5))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                    .buttonStyle(.plain)
+                    .help("Remove old versions and cache files")
+                }
             }
-            .buttonStyle(.plain)
 
             if !info.services.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {

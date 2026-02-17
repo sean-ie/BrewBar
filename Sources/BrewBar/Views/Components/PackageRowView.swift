@@ -11,6 +11,10 @@ struct PackageRowView: View {
     let dependencies: [String]
     let buildDependencies: [String]
     let autoUpdates: Bool
+    var pinned: Bool = false
+    var onUninstall: ((String) -> Void)?
+    var onPin: ((String) -> Void)?
+    var onUnpin: ((String) -> Void)?
 
     @State private var showDetail = false
 
@@ -27,6 +31,9 @@ struct PackageRowView: View {
                             text: isCask ? "cask" : "formula",
                             color: isCask ? .purple : .blue
                         )
+                        if pinned {
+                            StatusBadge(text: "pinned", color: .orange)
+                        }
                     }
                     if let description, !description.isEmpty {
                         Text(description)
@@ -44,6 +51,28 @@ struct PackageRowView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            if !isCask {
+                if pinned {
+                    Button {
+                        onUnpin?(name)
+                    } label: {
+                        Label("Unpin", systemImage: "pin.slash")
+                    }
+                } else {
+                    Button {
+                        onPin?(name)
+                    } label: {
+                        Label("Pin", systemImage: "pin")
+                    }
+                }
+            }
+            Button(role: .destructive) {
+                onUninstall?(name)
+            } label: {
+                Label("Uninstall", systemImage: "trash")
+            }
+        }
         .popover(isPresented: $showDetail) {
             PackageDetailView(
                 name: name,
@@ -55,7 +84,20 @@ struct PackageRowView: View {
                 tap: tap,
                 dependencies: dependencies,
                 buildDependencies: buildDependencies,
-                autoUpdates: autoUpdates
+                autoUpdates: autoUpdates,
+                pinned: pinned,
+                onUninstall: { pkg in
+                    showDetail = false
+                    onUninstall?(pkg)
+                },
+                onPin: { pkg in
+                    showDetail = false
+                    onPin?(pkg)
+                },
+                onUnpin: { pkg in
+                    showDetail = false
+                    onUnpin?(pkg)
+                }
             )
         }
     }
