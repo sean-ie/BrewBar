@@ -153,3 +153,9 @@ struct ServiceJSON: Decodable, Sendable {
         )
     }
 }
+
+struct ServiceInfoJSON: Decodable, Sendable {
+    let name: String
+    let log_path: String?
+    let error_log_path: String?
+}

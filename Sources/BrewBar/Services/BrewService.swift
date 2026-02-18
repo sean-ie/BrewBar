@@ -92,6 +92,28 @@ actor BrewDataService {
         try await process.runString(["services", "restart", name])
     }
 
+    // MARK: - Service info
+
+    func fetchServiceLog(_ name: String) async throws -> String {
+        let data = try await process.run(["services", "info", name, "--json"])
+        let infoArray: [ServiceInfoJSON] = try decoder.decode([ServiceInfoJSON].self, from: data)
+        guard let svcInfo = infoArray.first, let logPath = svcInfo.log_path else {
+            return "No log file found for \(name)."
+        }
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: logPath) else {
+            return "Log file not found at \(logPath)."
+        }
+        let url = URL(fileURLWithPath: logPath)
+        let content = try String(contentsOf: url, encoding: .utf8)
+        let lines = content.components(separatedBy: CharacterSet.newlines)
+        // Return last 50 lines
+        let tail = lines.suffix(50).joined(separator: "\n")
+        return tail.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines).isEmpty
+            ? "Log file is empty."
+            : tail
+    }
+
     // MARK: - Search & Install
 
     func searchPackages(_ query: String) async throws -> (formulae: [String], casks: [String]) {
@@ -134,6 +156,16 @@ actor BrewDataService {
 
     func cleanup() async throws -> String {
         try await process.runString(["cleanup", "--prune=all"])
+    }
+
+    // MARK: - Bundle
+
+    func exportBundle(to path: String) async throws -> String {
+        try await process.runString(["bundle", "dump", "--force", "--file=\(path)"])
+    }
+
+    func installBundle(at path: String) async throws -> String {
+        try await process.runString(["bundle", "install", "--file=\(path)"])
     }
 
     // MARK: - Uninstall

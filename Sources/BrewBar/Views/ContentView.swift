@@ -171,6 +171,36 @@ struct ContentView: View {
                 .background(.green.opacity(0.05))
             }
 
+            // Uninstall confirmation
+            if let confirmation = viewModel.confirmingUninstall {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                        .font(.caption)
+                    let pkgLabel = confirmation.packages.count == 1
+                        ? confirmation.packages[0]
+                        : "\(confirmation.packages.count) packages"
+                    Text("**\(confirmation.dependents.joined(separator: ", "))** depend\(confirmation.dependents.count == 1 ? "s" : "") on \(pkgLabel)")
+                        .font(.caption)
+                        .lineLimit(2)
+                    Spacer()
+                    Button("Uninstall Anyway") {
+                        viewModel.confirmUninstall()
+                    }
+                    .font(.caption)
+                    .controlSize(.small)
+                    Button {
+                        viewModel.confirmingUninstall = nil
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.caption2)
+                    }
+                    .buttonStyle(.borderless)
+                }
+                .padding(6)
+                .background(.orange.opacity(0.08))
+            }
+
             // Cleanup preview
             if let preview = viewModel.cleanupPreview {
                 VStack(alignment: .leading, spacing: 4) {
@@ -208,6 +238,46 @@ struct ContentView: View {
                 .background(.orange.opacity(0.05))
             }
 
+            // Service log viewer
+            if let log = viewModel.serviceLog {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Image(systemName: "doc.text")
+                            .foregroundStyle(.blue)
+                            .font(.caption)
+                        Text("\(log.name) log")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                        Spacer()
+                        Button {
+                            viewModel.dismissServiceLog()
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.caption2)
+                        }
+                        .buttonStyle(.borderless)
+                    }
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            Text(log.content)
+                                .font(.system(size: 10, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .textSelection(.enabled)
+                            Color.clear
+                                .frame(height: 0)
+                                .id("logBottom")
+                        }
+                        .onAppear {
+                            proxy.scrollTo("logBottom", anchor: .bottom)
+                        }
+                    }
+                    .frame(maxHeight: 120)
+                }
+                .padding(8)
+                .background(.blue.opacity(0.05))
+            }
+
             Divider()
 
             // Tab content
@@ -230,7 +300,12 @@ struct ContentView: View {
                         },
                         onCleanup: {
                             viewModel.previewCleanup()
-                        }
+                        },
+                        bundle: viewModel.bundle,
+                        onExportBundle: { viewModel.exportBundle() },
+                        onLoadBundle: { viewModel.loadBundle() },
+                        onInstallMissing: { viewModel.installBundleMissing() },
+                        onClearBundle: { viewModel.clearBundle() }
                     )
                 case .packages:
                     PackagesView(
@@ -274,7 +349,8 @@ struct ContentView: View {
                         services: viewModel.info.services,
                         onStart: { viewModel.startService($0) },
                         onStop: { viewModel.stopService($0) },
-                        onRestart: { viewModel.restartService($0) }
+                        onRestart: { viewModel.restartService($0) },
+                        onViewLog: { viewModel.fetchServiceLog($0) }
                     )
                 case .info:
                     InfoView(info: viewModel.info)
@@ -282,26 +358,9 @@ struct ContentView: View {
             }
             .frame(maxHeight: .infinity)
         }
-        .frame(width: 360, height: 420)
+        .frame(width: 360, height: 480)
         .onAppear {
             viewModel.refresh()
-        }
-        .alert(
-            "Dependency Warning",
-            isPresented: $viewModel.showUninstallConfirmation
-        ) {
-            Button("Cancel", role: .cancel) { }
-            Button("Uninstall Anyway", role: .destructive) {
-                viewModel.confirmUninstall()
-            }
-        } message: {
-            if let confirmation = viewModel.confirmingUninstall {
-                let pkgLabel = confirmation.packages.count == 1
-                    ? confirmation.packages[0]
-                    : "\(confirmation.packages.count) packages"
-                let depList = confirmation.dependents.joined(separator: ", ")
-                Text("Uninstalling \(pkgLabel) may break \(depList), which depend\(confirmation.dependents.count == 1 ? "s" : "") on \(confirmation.packages.count == 1 ? "it" : "them").")
-            }
         }
     }
 }

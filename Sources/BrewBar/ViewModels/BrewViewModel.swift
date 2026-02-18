@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import SwiftUI
 
@@ -26,20 +27,21 @@ final class BrewViewModel {
 
     // Uninstall confirmation state
     var confirmingUninstall: UninstallConfirmation?
-    var showUninstallConfirmation: Bool {
-        get { confirmingUninstall != nil }
-        set { if !newValue { confirmingUninstall = nil } }
-    }
 
     // Cleanup state
     var cleanupPreview: CleanupPreview?
     var showNothingToClean = false
 
+    // Bundle state
+    var bundle: BrewBundle?
+
     private let service = BrewDataService()
     private var refreshTimer: Timer?
+    private let bundlePathKey = "bundleFilePath"
 
     init() {
         startAutoRefresh()
+        loadPersistedBundle()
     }
 
     // MARK: - Refresh
@@ -67,6 +69,14 @@ final class BrewViewModel {
                 info.redundantPackages = detectRedundancies(in: installedResult.formulae)
                 let installedNames = Set(installedResult.formulae.map(\.name))
                 info.toolPaths = await service.resolveToolPaths(for: installedNames)
+
+                if let existing = bundle {
+                    bundle = BrewBundle(
+                        path: existing.path,
+                        displayName: existing.displayName,
+                        entries: checkBundleStatus(existing.entries)
+                    )
+                }
             } catch {
                 self.error = error.localizedDescription
             }
@@ -226,6 +236,25 @@ final class BrewViewModel {
 
     // MARK: - Service actions
 
+    var serviceLog: (name: String, content: String)?
+
+    func fetchServiceLog(_ name: String) {
+        actionInProgress = "Loading log for \(name)..."
+        Task {
+            do {
+                let log = try await service.fetchServiceLog(name)
+                serviceLog = (name: name, content: log)
+            } catch {
+                self.error = error.localizedDescription
+            }
+            actionInProgress = nil
+        }
+    }
+
+    func dismissServiceLog() {
+        serviceLog = nil
+    }
+
     func startService(_ name: String) {
         performAction("Starting \(name)...") {
             try await self.service.startService(name)
@@ -265,6 +294,101 @@ final class BrewViewModel {
             }
             actionInProgress = nil
             refresh()
+        }
+    }
+
+    // MARK: - Bundle
+
+    func exportBundle() {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "Brewfile"
+        panel.title = "Export Brewfile"
+        NSApp.activate(ignoringOtherApps: true)
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        performAction("Exporting Brewfile...") {
+            try await self.service.exportBundle(to: url.path)
+        }
+    }
+
+    func loadBundle() {
+        let panel = NSOpenPanel()
+        panel.title = "Load Brewfile"
+        panel.allowsMultipleSelection = false
+        NSApp.activate(ignoringOtherApps: true)
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            let entries = try parseBrewfile(at: url.path)
+            bundle = BrewBundle(
+                path: url.path,
+                displayName: url.lastPathComponent,
+                entries: checkBundleStatus(entries)
+            )
+            UserDefaults.standard.set(url.path, forKey: bundlePathKey)
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    func installBundleMissing() {
+        guard let b = bundle else { return }
+        performAction("Installing missing Brewfile entries...") {
+            try await self.service.installBundle(at: b.path)
+        }
+    }
+
+    func clearBundle() {
+        bundle = nil
+        UserDefaults.standard.removeObject(forKey: bundlePathKey)
+    }
+
+    private func loadPersistedBundle() {
+        guard let path = UserDefaults.standard.string(forKey: bundlePathKey) else { return }
+        guard FileManager.default.fileExists(atPath: path) else {
+            UserDefaults.standard.removeObject(forKey: bundlePathKey)
+            return
+        }
+        do {
+            let entries = try parseBrewfile(at: path)
+            let url = URL(fileURLWithPath: path)
+            bundle = BrewBundle(
+                path: path,
+                displayName: url.lastPathComponent,
+                entries: checkBundleStatus(entries)
+            )
+        } catch { /* silently skip */ }
+    }
+
+    private func parseBrewfile(at path: String) throws -> [BundleEntry] {
+        let content = try String(contentsOfFile: path, encoding: .utf8)
+        var entries: [BundleEntry] = []
+        let pattern = #/^(brew|cask|tap|mas|vscode|whalebrew)\s+"([^"]+)"/#
+        for line in content.components(separatedBy: .newlines) {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard !trimmed.hasPrefix("#"), !trimmed.isEmpty else { continue }
+            if let m = trimmed.firstMatch(of: pattern) {
+                let type = BundleEntry.EntryType(rawValue: String(m.1)) ?? .brew
+                entries.append(BundleEntry(type: type, name: String(m.2), isInstalled: false))
+            }
+        }
+        return entries
+    }
+
+    private func checkBundleStatus(_ entries: [BundleEntry]) -> [BundleEntry] {
+        let formulaeNames     = Set(info.formulae.map(\.name))
+        let formulaeFullNames = Set(info.formulae.map(\.fullName))
+        let casksSet          = Set(info.casks.map(\.token))
+        return entries.map { entry in
+            var e = entry
+            switch e.type {
+            case .brew:
+                // Brewfile may use the short name ("bun") or the full tap path ("oven-sh/bun/bun")
+                e.isInstalled = formulaeNames.contains(e.name) || formulaeFullNames.contains(e.name)
+            case .cask:
+                e.isInstalled = casksSet.contains(e.name)
+            default:
+                e.isInstalled = true   // taps/mas/vscode not checked — shown neutral
+            }
+            return e
         }
     }
 

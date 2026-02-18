@@ -5,6 +5,7 @@ struct ServicesView: View {
     let onStart: (String) -> Void
     let onStop: (String) -> Void
     let onRestart: (String) -> Void
+    var onViewLog: ((String) -> Void)?
 
     var body: some View {
         ScrollView {
@@ -25,7 +26,10 @@ struct ServicesView: View {
                             service: service,
                             onStart: { onStart(service.name) },
                             onStop: { onStop(service.name) },
-                            onRestart: { onRestart(service.name) }
+                            onRestart: { onRestart(service.name) },
+                            onViewLog: onViewLog.map { handler in
+                                { handler(service.name) }
+                            }
                         )
                         .padding(.horizontal, 8)
                         Divider()

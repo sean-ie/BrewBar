@@ -10,6 +10,7 @@ struct PackageRowView: View {
     let tap: String?
     let dependencies: [String]
     let buildDependencies: [String]
+    var requiredBy: [String] = []
     let autoUpdates: Bool
     var pinned: Bool = false
     var onUninstall: ((String) -> Void)?
@@ -33,6 +34,10 @@ struct PackageRowView: View {
                         )
                         if pinned {
                             StatusBadge(text: "pinned", color: .orange)
+                        }
+                        if !requiredBy.isEmpty {
+                            StatusBadge(text: "dep", color: .gray)
+                                .help("Required by: \(requiredBy.joined(separator: ", "))")
                         }
                     }
                     if let description, !description.isEmpty {
@@ -84,6 +89,7 @@ struct PackageRowView: View {
                 tap: tap,
                 dependencies: dependencies,
                 buildDependencies: buildDependencies,
+                requiredBy: requiredBy,
                 autoUpdates: autoUpdates,
                 pinned: pinned,
                 onUninstall: { pkg in

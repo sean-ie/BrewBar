@@ -6,6 +6,11 @@ struct DashboardView: View {
     var onUninstall: ((String) -> Void)?
     var onUninstallAll: (([String]) -> Void)?
     var onCleanup: (() -> Void)?
+    var bundle: BrewBundle?
+    var onExportBundle: (() -> Void)?
+    var onLoadBundle: (() -> Void)?
+    var onInstallMissing: (() -> Void)?
+    var onClearBundle: (() -> Void)?
 
     private var detectedTools: [(name: String, version: String, icon: String, path: String?)] {
         let toolDefs: [(name: String, icon: String)] = [
@@ -27,7 +32,7 @@ struct DashboardView: View {
 
     var body: some View {
         ScrollView {
-        VStack(spacing: 12) {
+        VStack(spacing: 8) {
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
                 SummaryCard(
                     title: "Formulae",
@@ -51,7 +56,7 @@ struct DashboardView: View {
                     subtitle: outdatedCount > 0 ? "Tap to upgrade" : "All up to date",
                     count: outdatedCount,
                     icon: "exclamationmark.arrow.circlepath",
-                    color: .orange
+                    color: outdatedCount > 0 ? .orange : .green
                 ) { onNavigate(.outdated, nil) }
 
                 SummaryCard(
@@ -59,7 +64,7 @@ struct DashboardView: View {
                     subtitle: "Start, stop, restart",
                     count: info.services.count,
                     icon: "gearshape.2",
-                    color: .green
+                    color: .teal
                 ) { onNavigate(.services, nil) }
             }
 
@@ -68,24 +73,21 @@ struct DashboardView: View {
                 Button {
                     onNavigate(.info, nil)
                 } label: {
-                    HStack {
+                    HStack(spacing: 10) {
                         Image(systemName: "info.circle")
-                            .font(.title3)
+                            .font(.system(size: 18, weight: .medium))
                             .foregroundStyle(.teal)
+                            .frame(width: 22, alignment: .center)
                         VStack(alignment: .leading, spacing: 1) {
                             Text("Homebrew Info")
-                                .font(.caption)
-                                .fontWeight(.medium)
-                            Text(info.brewConfig["HOMEBREW_VERSION"].map { "v\($0)" } ?? "View configuration")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
+                            Text(info.brewConfig["HOMEBREW_VERSION"].map { "v\($0)" } ?? "—")
+                                .font(.system(size: 17, weight: .semibold, design: .rounded))
                         }
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
                     }
-                    .padding(8)
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .background(.quaternary.opacity(0.5))
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
@@ -95,15 +97,22 @@ struct DashboardView: View {
                     Button {
                         onCleanup()
                     } label: {
-                        VStack(spacing: 2) {
+                        HStack(spacing: 10) {
                             Image(systemName: "trash.circle")
-                                .font(.title3)
+                                .font(.system(size: 18, weight: .medium))
                                 .foregroundStyle(.red)
-                            Text("Cleanup")
-                                .font(.caption2)
-                                .fontWeight(.medium)
+                                .frame(width: 22, alignment: .center)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Cleanup")
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                                Text("Remove old files")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
-                        .padding(8)
+                        .padding(10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .background(.quaternary.opacity(0.5))
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
@@ -225,9 +234,124 @@ struct DashboardView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+            BrewfileSectionView(
+                bundle: bundle,
+                onExport: onExportBundle,
+                onLoad: onLoadBundle,
+                onInstallMissing: onInstallMissing,
+                onClear: onClearBundle
+            )
         }
         .padding(10)
         }
+    }
+}
+
+private struct BrewfileSectionView: View {
+    let bundle: BrewBundle?
+    let onExport: (() -> Void)?
+    let onLoad: (() -> Void)?
+    let onInstallMissing: (() -> Void)?
+    let onClear: (() -> Void)?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            // Header row
+            HStack {
+                Text("Brewfile")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if let bundle {
+                    Text(bundle.displayName)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                    Spacer()
+                    Button {
+                        onClear?()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Clear Brewfile")
+                } else {
+                    Spacer()
+                }
+            }
+
+            if let bundle {
+                // Status row
+                HStack(spacing: 8) {
+                    Label("\(bundle.installedCount) installed", systemImage: "checkmark.circle.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.green)
+                    if bundle.missingCount > 0 {
+                        Label("\(bundle.missingCount) missing", systemImage: "xmark.circle.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
+                    }
+                    Spacer()
+                }
+
+                // Missing entries list (capped at 5)
+                let missing = bundle.entries.filter { $0.type.isCheckable && !$0.isInstalled }
+                if !missing.isEmpty {
+                    VStack(alignment: .leading, spacing: 2) {
+                        ForEach(missing.prefix(5)) { entry in
+                            HStack(spacing: 4) {
+                                Text("•")
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                                Text(entry.type.label + ":")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                Text(entry.name)
+                                    .font(.caption2)
+                                    .fontWeight(.medium)
+                            }
+                        }
+                        if missing.count > 5 {
+                            Text("and \(missing.count - 5) more…")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                }
+
+                // Action buttons
+                HStack(spacing: 6) {
+                    Button("Export Current") { onExport?() }
+                        .font(.caption2)
+                        .buttonStyle(.borderless)
+                    Spacer()
+                    if bundle.missingCount > 0 {
+                        Button("Install Missing →") { onInstallMissing?() }
+                            .font(.caption2)
+                            .buttonStyle(.borderless)
+                            .foregroundStyle(.orange)
+                    }
+                }
+            } else {
+                // No bundle loaded
+                Text("No Brewfile loaded")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+
+                HStack(spacing: 6) {
+                    Button("Export Current") { onExport?() }
+                        .font(.caption2)
+                        .buttonStyle(.borderless)
+                    Button("Load Brewfile") { onLoad?() }
+                        .font(.caption2)
+                        .buttonStyle(.borderless)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(8)
+        .background(.quaternary.opacity(0.5))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
 
@@ -241,25 +365,26 @@ private struct SummaryCard: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 4) {
+            HStack(spacing: 10) {
                 Image(systemName: icon)
-                    .font(.title2)
+                    .font(.system(size: 18, weight: .medium))
                     .foregroundStyle(color)
-                Text("\(count)")
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                Text(title)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text(subtitle)
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                    .frame(width: 22, alignment: .center)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("\(count)")
+                        .font(.system(size: 17, weight: .semibold, design: .rounded))
+                    Text(title)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
             }
-            .frame(maxWidth: .infinity)
-            .padding(8)
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .background(.quaternary.opacity(0.5))
             .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
+        .help(subtitle)
     }
 }

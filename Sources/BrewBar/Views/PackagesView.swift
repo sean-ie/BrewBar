@@ -19,6 +19,20 @@ struct PackagesView: View {
     var onPin: ((String) -> Void)?
     var onUnpin: ((String) -> Void)?
     @State private var searchText = ""
+    @State private var searchTask: Task<Void, Never>?
+    @State private var formulaeExpanded = true
+    @State private var casksExpanded = true
+
+    // Map: formula name → names of installed formulae that depend on it
+    private var reverseDeps: [String: [String]] {
+        var map: [String: [String]] = [:]
+        for formula in formulae {
+            for dep in formula.dependencies + formula.buildDependencies {
+                map[dep, default: []].append(formula.name)
+            }
+        }
+        return map
+    }
 
     private var filteredFormulae: [Formula] {
         guard filter != .casks else { return [] }
@@ -78,71 +92,62 @@ struct PackagesView: View {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     if !filteredFormulae.isEmpty {
                         Section {
-                            ForEach(filteredFormulae) { formula in
-                                PackageRowView(
-                                    name: formula.name,
-                                    version: formula.version,
-                                    description: formula.description,
-                                    isCask: false,
-                                    homepage: formula.homepage,
-                                    license: formula.license,
-                                    tap: formula.tap,
-                                    dependencies: formula.dependencies,
-                                    buildDependencies: formula.buildDependencies,
-                                    autoUpdates: false,
-                                    pinned: formula.pinned,
-                                    onUninstall: onUninstall,
-                                    onPin: onPin,
-                                    onUnpin: onUnpin
-                                )
-                                .padding(.horizontal, 8)
-                                Divider()
+                            if formulaeExpanded {
+                                ForEach(filteredFormulae) { formula in
+                                    PackageRowView(
+                                        name: formula.name,
+                                        version: formula.version,
+                                        description: formula.description,
+                                        isCask: false,
+                                        homepage: formula.homepage,
+                                        license: formula.license,
+                                        tap: formula.tap,
+                                        dependencies: formula.dependencies,
+                                        buildDependencies: formula.buildDependencies,
+                                        requiredBy: reverseDeps[formula.name, default: []].sorted(),
+                                        autoUpdates: false,
+                                        pinned: formula.pinned,
+                                        onUninstall: onUninstall,
+                                        onPin: onPin,
+                                        onUnpin: onUnpin
+                                    )
+                                    .padding(.horizontal, 8)
+                                    Divider()
+                                }
                             }
                         } header: {
-                            sectionHeader("Formulae (\(filteredFormulae.count))")
+                            collapsibleHeader("Formulae (\(filteredFormulae.count))", expanded: $formulaeExpanded)
                         }
                     }
 
                     if !filteredCasks.isEmpty {
                         Section {
-                            ForEach(filteredCasks) { cask in
-                                PackageRowView(
-                                    name: cask.name,
-                                    version: cask.version,
-                                    description: cask.description,
-                                    isCask: true,
-                                    homepage: cask.homepage,
-                                    license: nil,
-                                    tap: cask.tap,
-                                    dependencies: [],
-                                    buildDependencies: [],
-                                    autoUpdates: cask.autoUpdates,
-                                    onUninstall: onUninstall
-                                )
-                                .padding(.horizontal, 8)
-                                Divider()
+                            if casksExpanded {
+                                ForEach(filteredCasks) { cask in
+                                    PackageRowView(
+                                        name: cask.name,
+                                        version: cask.version,
+                                        description: cask.description,
+                                        isCask: true,
+                                        homepage: cask.homepage,
+                                        license: nil,
+                                        tap: cask.tap,
+                                        dependencies: [],
+                                        buildDependencies: [],
+                                        autoUpdates: cask.autoUpdates,
+                                        onUninstall: onUninstall
+                                    )
+                                    .padding(.horizontal, 8)
+                                    Divider()
+                                }
                             }
                         } header: {
-                            sectionHeader("Casks (\(filteredCasks.count))")
+                            collapsibleHeader("Casks (\(filteredCasks.count))", expanded: $casksExpanded)
                         }
                     }
 
-                    if filteredFormulae.isEmpty && filteredCasks.isEmpty && !searchText.isEmpty && searchResults.formulae.isEmpty && searchResults.casks.isEmpty && !isSearching {
-                        VStack(spacing: 8) {
-                            Text("No installed packages match")
-                                .foregroundStyle(.secondary)
-                            if let onSearchBrew {
-                                Button("Search Homebrew for \"\(searchText)\"") {
-                                    onSearchBrew(searchText)
-                                }
-                                .font(.caption)
-                                .buttonStyle(.borderless)
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                    } else if filteredFormulae.isEmpty && filteredCasks.isEmpty && searchResults.formulae.isEmpty && searchResults.casks.isEmpty {
-                        Text("No packages found")
+                    if filteredFormulae.isEmpty && filteredCasks.isEmpty && searchResults.formulae.isEmpty && searchResults.casks.isEmpty && !isSearching {
+                        Text(searchText.isEmpty ? "No packages found" : "No results for \"\(searchText)\"")
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity)
                             .padding()
@@ -189,6 +194,17 @@ struct PackagesView: View {
         }
         .onChange(of: searchText) {
             onClearSearch?()
+            if !searchText.isEmpty {
+                formulaeExpanded = true
+                casksExpanded = true
+            }
+            searchTask?.cancel()
+            guard !searchText.isEmpty else { return }
+            searchTask = Task {
+                try? await Task.sleep(for: .milliseconds(500))
+                guard !Task.isCancelled else { return }
+                onSearchBrew?(searchText)
+            }
         }
     }
 
@@ -201,6 +217,31 @@ struct PackagesView: View {
             .padding(.vertical, 4)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(.bar)
+    }
+
+    private func collapsibleHeader(_ title: String, expanded: Binding<Bool>) -> some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                expanded.wrappedValue.toggle()
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: expanded.wrappedValue ? "chevron.down" : "chevron.right")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+                Text(title)
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .frame(maxWidth: .infinity)
+            .background(.bar)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
 

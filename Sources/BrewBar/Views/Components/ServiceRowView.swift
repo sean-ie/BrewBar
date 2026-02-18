@@ -5,6 +5,7 @@ struct ServiceRowView: View {
     let onStart: () -> Void
     let onStop: () -> Void
     let onRestart: () -> Void
+    var onViewLog: (() -> Void)?
 
     var body: some View {
         HStack {
@@ -22,6 +23,12 @@ struct ServiceRowView: View {
             }
             Spacer()
             HStack(spacing: 4) {
+                if let onViewLog {
+                    Button(action: onViewLog) {
+                        Image(systemName: "doc.text")
+                    }
+                    .help("View Log")
+                }
                 switch service.status {
                 case .started:
                     Button(action: onStop) {

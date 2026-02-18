@@ -10,6 +10,7 @@ struct PackageDetailView: View {
     let tap: String?
     let dependencies: [String]
     let buildDependencies: [String]
+    var requiredBy: [String] = []
     let autoUpdates: Bool
     var pinned: Bool = false
     var onUninstall: ((String) -> Void)?
@@ -77,6 +78,16 @@ struct PackageDetailView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Text(buildDependencies.joined(separator: ", "))
+                        .font(.caption)
+                }
+            }
+
+            if !requiredBy.isEmpty {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Required by")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(requiredBy.joined(separator: ", "))
                         .font(.caption)
                 }
             }
