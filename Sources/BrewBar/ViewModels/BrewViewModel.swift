@@ -40,6 +40,10 @@ final class BrewViewModel {
     var doctorChecked = false
     var isDoctorRunning = false
 
+    // Lazy detail data (keyed by formula name; nil = not fetched, "…" = loading)
+    var depTreeResults: [String: String] = [:]
+    var diskUsageResults: [String: String] = [:]
+
     private let service = BrewDataService()
     private var refreshTimer: Timer?
     private let bundlePathKey = "bundleFilePath"
@@ -335,6 +339,68 @@ final class BrewViewModel {
         }
         if !current.isEmpty { warnings.append(current.trimmingCharacters(in: .whitespacesAndNewlines)) }
         return warnings
+    }
+
+    // MARK: - Bulk upgrade
+
+    func upgradeSelected(formulae: [String], casks: [String]) {
+        let total = formulae.count + casks.count
+        let label = total == 1 ? (formulae.first ?? casks.first ?? "package") : "\(total) packages"
+        performAction("Upgrading \(label)...") {
+            try await self.service.upgradeMultiple(formulae: formulae, casks: casks)
+        }
+    }
+
+    // MARK: - Dep tree
+
+    func fetchDepTree(for name: String) {
+        guard depTreeResults[name] == nil else { return }
+        depTreeResults[name] = "…"
+        Task {
+            do {
+                let raw = try await service.fetchDepTree(for: name)
+                let lines = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+                    .components(separatedBy: "\n")
+                    .dropFirst()    // first line is just the formula name
+                depTreeResults[name] = lines.joined(separator: "\n")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+            } catch {
+                depTreeResults[name] = ""   // no deps or unavailable
+            }
+        }
+    }
+
+    // MARK: - Disk usage
+
+    func fetchDiskUsage(for name: String) {
+        guard diskUsageResults[name] == nil else { return }
+        guard let formula = info.formulae.first(where: { $0.name == name }) else { return }
+        let cellar = info.brewConfig["HOMEBREW_CELLAR"] ?? "/opt/homebrew/Cellar"
+        let path = "\(cellar)/\(name)/\(formula.version)"
+        diskUsageResults[name] = "…"
+        Task {
+            let size = await Task.detached(priority: .background) {
+                BrewViewModel.directorySize(at: path)
+            }.value
+            diskUsageResults[name] = size
+        }
+    }
+
+    private nonisolated static func directorySize(at path: String) -> String {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: path) else { return "—" }
+        var size: Int64 = 0
+        let keys: [URLResourceKey] = [.fileSizeKey, .isRegularFileKey]
+        if let enumerator = fm.enumerator(at: URL(fileURLWithPath: path),
+                                          includingPropertiesForKeys: keys) {
+            for case let url as URL in enumerator {
+                guard let values = try? url.resourceValues(forKeys: Set(keys)),
+                      values.isRegularFile == true,
+                      let fileSize = values.fileSize else { continue }
+                size += Int64(fileSize)
+            }
+        }
+        return ByteCountFormatter.string(fromByteCount: size, countStyle: .file)
     }
 
     // MARK: - Taps

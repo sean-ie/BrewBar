@@ -318,35 +318,24 @@ struct ContentView: View {
                         filter: $packageFilter,
                         searchResults: viewModel.searchResults,
                         isSearching: viewModel.isSearching,
-                        onSearchBrew: { query in
-                            viewModel.searchBrewPackages(query)
-                        },
-                        onClearSearch: {
-                            viewModel.clearSearchResults()
-                        },
-                        onInstall: { name, isCask in
-                            viewModel.install(package: name, isCask: isCask)
-                        },
-                        onUninstall: { name in
-                            viewModel.uninstall(package: name)
-                        },
-                        onPin: { name in
-                            viewModel.pin(package: name)
-                        },
-                        onUnpin: { name in
-                            viewModel.unpin(package: name)
-                        }
+                        onSearchBrew: { viewModel.searchBrewPackages($0) },
+                        onClearSearch: { viewModel.clearSearchResults() },
+                        onInstall: { viewModel.install(package: $0, isCask: $1) },
+                        onUninstall: { viewModel.uninstall(package: $0) },
+                        onPin: { viewModel.pin(package: $0) },
+                        onUnpin: { viewModel.unpin(package: $0) },
+                        depTreeResults: viewModel.depTreeResults,
+                        diskUsageResults: viewModel.diskUsageResults,
+                        onFetchDepTree: { viewModel.fetchDepTree(for: $0) },
+                        onFetchDiskUsage: { viewModel.fetchDiskUsage(for: $0) }
                     )
                 case .outdated:
                     OutdatedView(
                         formulae: viewModel.info.outdatedFormulae,
                         casks: viewModel.info.outdatedCasks,
-                        onUpgrade: { name, isCask in
-                            viewModel.upgrade(package: name, isCask: isCask)
-                        },
-                        onUpgradeAll: {
-                            viewModel.upgradeAll()
-                        }
+                        onUpgrade: { viewModel.upgrade(package: $0, isCask: $1) },
+                        onUpgradeAll: { viewModel.upgradeAll() },
+                        onUpgradeSelected: { viewModel.upgradeSelected(formulae: $0, casks: $1) }
                     )
                 case .services:
                     ServicesView(

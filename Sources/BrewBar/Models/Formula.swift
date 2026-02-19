@@ -14,4 +14,5 @@ struct Formula: Identifiable, Sendable {
     let tap: String?
     let dependencies: [String]
     let buildDependencies: [String]
+    let installedOnRequest: Bool
 }

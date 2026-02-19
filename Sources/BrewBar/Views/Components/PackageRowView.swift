@@ -13,6 +13,10 @@ struct PackageRowView: View {
     var requiredBy: [String] = []
     let autoUpdates: Bool
     var pinned: Bool = false
+    var depTree: String? = nil
+    var diskUsage: String? = nil
+    var onFetchDepTree: (() -> Void)? = nil
+    var onFetchDiskUsage: (() -> Void)? = nil
     var onUninstall: ((String) -> Void)?
     var onPin: ((String) -> Void)?
     var onUnpin: ((String) -> Void)?
@@ -92,6 +96,10 @@ struct PackageRowView: View {
                 requiredBy: requiredBy,
                 autoUpdates: autoUpdates,
                 pinned: pinned,
+                depTree: depTree,
+                diskUsage: diskUsage,
+                onFetchDepTree: onFetchDepTree,
+                onFetchDiskUsage: onFetchDiskUsage,
                 onUninstall: { pkg in
                     showDetail = false
                     onUninstall?(pkg)

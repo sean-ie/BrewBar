@@ -80,6 +80,22 @@ actor BrewDataService {
         return try await process.runString(args)
     }
 
+    func upgradeMultiple(formulae: [String], casks: [String]) async throws -> String {
+        var output = ""
+        if !formulae.isEmpty {
+            output += try await process.runString(["upgrade"] + formulae)
+        }
+        if !casks.isEmpty {
+            if !output.isEmpty { output += "\n" }
+            output += try await process.runString(["upgrade", "--cask"] + casks)
+        }
+        return output
+    }
+
+    func fetchDepTree(for name: String) async throws -> String {
+        try await process.runString(["deps", "--tree", name])
+    }
+
     func startService(_ name: String) async throws -> String {
         try await process.runString(["services", "start", name])
     }

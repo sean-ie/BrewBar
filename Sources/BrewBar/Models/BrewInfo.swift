@@ -36,6 +36,7 @@ struct FormulaJSON: Decodable, Sendable {
 
     struct FormulaInstalled: Decodable, Sendable {
         let version: String
+        let installed_on_request: Bool?
     }
 
     func toFormula() -> Formula {
@@ -51,7 +52,8 @@ struct FormulaJSON: Decodable, Sendable {
             license: license,
             tap: tap,
             dependencies: dependencies ?? [],
-            buildDependencies: build_dependencies ?? []
+            buildDependencies: build_dependencies ?? [],
+            installedOnRequest: installed.first?.installed_on_request ?? true
         )
     }
 }
@@ -108,7 +110,8 @@ struct OutdatedFormulaJSON: Decodable, Sendable {
             license: nil,
             tap: nil,
             dependencies: [],
-            buildDependencies: []
+            buildDependencies: [],
+            installedOnRequest: true
         )
     }
 }

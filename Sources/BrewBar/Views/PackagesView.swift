@@ -18,6 +18,10 @@ struct PackagesView: View {
     var onUninstall: ((String) -> Void)?
     var onPin: ((String) -> Void)?
     var onUnpin: ((String) -> Void)?
+    var depTreeResults: [String: String] = [:]
+    var diskUsageResults: [String: String] = [:]
+    var onFetchDepTree: ((String) -> Void)? = nil
+    var onFetchDiskUsage: ((String) -> Void)? = nil
     @State private var searchText = ""
     @State private var searchTask: Task<Void, Never>?
     @State private var formulaeExpanded = true
@@ -107,6 +111,10 @@ struct PackagesView: View {
                                         requiredBy: reverseDeps[formula.name, default: []].sorted(),
                                         autoUpdates: false,
                                         pinned: formula.pinned,
+                                        depTree: depTreeResults[formula.name],
+                                        diskUsage: diskUsageResults[formula.name],
+                                        onFetchDepTree: { onFetchDepTree?(formula.name) },
+                                        onFetchDiskUsage: { onFetchDiskUsage?(formula.name) },
                                         onUninstall: onUninstall,
                                         onPin: onPin,
                                         onUnpin: onUnpin
@@ -116,7 +124,11 @@ struct PackagesView: View {
                                 }
                             }
                         } header: {
-                            collapsibleHeader("Formulae (\(filteredFormulae.count))", expanded: $formulaeExpanded)
+                            let depCount = searchText.isEmpty
+                                ? filteredFormulae.filter { !$0.installedOnRequest }.count
+                                : nil
+                            let subtitle = depCount.map { $0 > 0 ? " · \($0) deps" : "" } ?? ""
+                            collapsibleHeader("Formulae (\(filteredFormulae.count)\(subtitle))", expanded: $formulaeExpanded)
                         }
                     }
 

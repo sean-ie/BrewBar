@@ -13,6 +13,10 @@ struct PackageDetailView: View {
     var requiredBy: [String] = []
     let autoUpdates: Bool
     var pinned: Bool = false
+    var depTree: String? = nil          // nil = not fetched, "…" = loading, "" = no deps
+    var diskUsage: String? = nil        // nil = not fetched, "…" = loading
+    var onFetchDepTree: (() -> Void)? = nil
+    var onFetchDiskUsage: (() -> Void)? = nil
     var onUninstall: ((String) -> Void)?
     var onPin: ((String) -> Void)?
     var onUnpin: ((String) -> Void)?
@@ -92,6 +96,41 @@ struct PackageDetailView: View {
                 }
             }
 
+            if !isCask, let diskUsage {
+                detailRow("Size", value: diskUsage == "…" ? "…" : diskUsage)
+            }
+
+            if !isCask {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Dependency tree")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    switch depTree {
+                    case nil:
+                        Text("…")
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundStyle(.tertiary)
+                    case "":
+                        Text("No dependencies")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    case let tree?:
+                        if tree == "…" {
+                            ProgressView().controlSize(.mini)
+                        } else {
+                            ScrollView([.horizontal, .vertical]) {
+                                Text(tree)
+                                    .font(.system(size: 10, design: .monospaced))
+                                    .foregroundStyle(.secondary)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .textSelection(.enabled)
+                            }
+                            .frame(maxHeight: 120)
+                        }
+                    }
+                }
+            }
+
             if onUninstall != nil || onPin != nil || onUnpin != nil {
                 Divider()
                 HStack(spacing: 8) {
@@ -129,6 +168,12 @@ struct PackageDetailView: View {
         }
         .padding(12)
         .frame(width: 280, alignment: .leading)
+        .onAppear {
+            if !isCask {
+                onFetchDepTree?()
+                onFetchDiskUsage?()
+            }
+        }
     }
 
     private func detailRow(_ label: String, value: String) -> some View {

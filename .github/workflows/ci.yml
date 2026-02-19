@@ -36,7 +36,6 @@ jobs:
 
     - name: Run tests
       run: swift test
-      continue-on-error: true
 
     - name: Check Swift formatting
       run: |
