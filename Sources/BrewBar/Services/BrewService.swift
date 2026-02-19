@@ -158,6 +158,30 @@ actor BrewDataService {
         try await process.runString(["cleanup", "--prune=all"])
     }
 
+    // MARK: - Doctor
+
+    func doctor() async throws -> String {
+        try await process.runStringAllowingFailure(["doctor", "--quiet"])
+    }
+
+    // MARK: - Taps
+
+    func fetchTaps() async throws -> [String] {
+        let output = try await process.runString(["tap"])
+        return output.components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .sorted()
+    }
+
+    func addTap(_ name: String) async throws -> String {
+        try await process.runString(["tap", name])
+    }
+
+    func removeTap(_ name: String) async throws -> String {
+        try await process.runString(["untap", name])
+    }
+
     // MARK: - Bundle
 
     func exportBundle(to path: String) async throws -> String {

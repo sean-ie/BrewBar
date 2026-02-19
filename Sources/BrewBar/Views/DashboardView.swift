@@ -11,6 +11,10 @@ struct DashboardView: View {
     var onLoadBundle: (() -> Void)?
     var onInstallMissing: (() -> Void)?
     var onClearBundle: (() -> Void)?
+    var doctorWarnings: [String] = []
+    var doctorChecked: Bool = false
+    var isDoctorRunning: Bool = false
+    var onRunDoctor: (() -> Void)?
 
     private var detectedTools: [(name: String, version: String, icon: String, path: String?)] {
         let toolDefs: [(name: String, icon: String)] = [
@@ -120,6 +124,13 @@ struct DashboardView: View {
                     .help("Remove old versions and cache files")
                 }
             }
+
+            DoctorSectionView(
+                warnings: doctorWarnings,
+                checked: doctorChecked,
+                isRunning: isDoctorRunning,
+                onRun: onRunDoctor
+            )
 
             if !info.services.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
@@ -244,6 +255,90 @@ struct DashboardView: View {
         }
         .padding(10)
         }
+    }
+}
+
+private struct DoctorSectionView: View {
+    let warnings: [String]
+    let checked: Bool
+    let isRunning: Bool
+    let onRun: (() -> Void)?
+
+    @State private var expanded = false
+
+    var body: some View {
+        HStack(spacing: 8) {
+            if isRunning {
+                ProgressView()
+                    .controlSize(.small)
+                Text("Running brew doctor…")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else if !checked {
+                Image(systemName: "stethoscope")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("brew doctor")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if let onRun {
+                    Button("Run Check", action: onRun)
+                        .font(.caption)
+                        .buttonStyle(.borderless)
+                }
+            } else if warnings.isEmpty {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.green)
+                Text("Your system is ready to brew.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if let onRun {
+                    Button("Re-run", action: onRun)
+                        .font(.caption2)
+                        .buttonStyle(.borderless)
+                        .foregroundStyle(.tertiary)
+                }
+            } else {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("\(warnings.count) warning\(warnings.count == 1 ? "" : "s")")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                        Spacer()
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.15)) { expanded.toggle() }
+                        } label: {
+                            Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
+                        .buttonStyle(.borderless)
+                        if let onRun {
+                            Button("Re-run", action: onRun)
+                                .font(.caption2)
+                                .buttonStyle(.borderless)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                    if expanded {
+                        ForEach(warnings, id: \.self) { warning in
+                            Text(warning.components(separatedBy: "\n").first ?? warning)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .padding(.leading, 4)
+                        }
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

@@ -35,6 +35,11 @@ final class BrewViewModel {
     // Bundle state
     var bundle: BrewBundle?
 
+    // Doctor state
+    var doctorWarnings: [String] = []
+    var doctorChecked = false
+    var isDoctorRunning = false
+
     private let service = BrewDataService()
     private var refreshTimer: Timer?
     private let bundlePathKey = "bundleFilePath"
@@ -57,8 +62,9 @@ final class BrewViewModel {
                 async let outdated = service.fetchOutdated()
                 async let services = service.fetchServices()
                 async let config = service.fetchConfig()
+                async let taps = service.fetchTaps()
 
-                let (installedResult, outdatedResult, servicesResult, configResult) = try await (installed, outdated, services, config)
+                let (installedResult, outdatedResult, servicesResult, configResult, tapsResult) = try await (installed, outdated, services, config, taps)
 
                 info.formulae = installedResult.formulae
                 info.casks = installedResult.casks
@@ -66,6 +72,7 @@ final class BrewViewModel {
                 info.outdatedCasks = outdatedResult.casks
                 info.services = servicesResult
                 info.brewConfig = configResult
+                info.taps = tapsResult
                 info.redundantPackages = detectRedundancies(in: installedResult.formulae)
                 let installedNames = Set(installedResult.formulae.map(\.name))
                 info.toolPaths = await service.resolveToolPaths(for: installedNames)
@@ -294,6 +301,55 @@ final class BrewViewModel {
             }
             actionInProgress = nil
             refresh()
+        }
+    }
+
+    // MARK: - Doctor
+
+    func runDoctor() {
+        isDoctorRunning = true
+        Task {
+            do {
+                let output = try await service.doctor()
+                doctorWarnings = parseDoctorOutput(output)
+                doctorChecked = true
+            } catch {
+                self.error = error.localizedDescription
+            }
+            isDoctorRunning = false
+        }
+    }
+
+    private func parseDoctorOutput(_ output: String) -> [String] {
+        let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return [] }
+        var warnings: [String] = []
+        var current = ""
+        for line in trimmed.components(separatedBy: "\n") {
+            if line.hasPrefix("Warning:") || line.hasPrefix("Error:") {
+                if !current.isEmpty { warnings.append(current.trimmingCharacters(in: .whitespacesAndNewlines)) }
+                current = line
+            } else {
+                current += "\n" + line
+            }
+        }
+        if !current.isEmpty { warnings.append(current.trimmingCharacters(in: .whitespacesAndNewlines)) }
+        return warnings
+    }
+
+    // MARK: - Taps
+
+    func addTap(_ name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        performAction("Adding tap \(trimmed)...") {
+            try await self.service.addTap(trimmed)
+        }
+    }
+
+    func removeTap(_ name: String) {
+        performAction("Removing tap \(name)...") {
+            try await self.service.removeTap(name)
         }
     }
 

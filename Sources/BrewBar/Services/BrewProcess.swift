@@ -57,4 +57,28 @@ actor BrewProcess {
         let data = try await run(arguments)
         return String(data: data, encoding: .utf8) ?? ""
     }
+
+    // Captures stdout regardless of exit code — for commands like `brew doctor`
+    // that exit 1 when they have output to report.
+    func runStringAllowingFailure(_ arguments: [String]) async throws -> String {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: brewPath)
+        process.arguments = arguments
+
+        var env = ProcessInfo.processInfo.environment
+        let homebrewPrefix = URL(fileURLWithPath: brewPath).deletingLastPathComponent().path
+        if let path = env["PATH"] {
+            env["PATH"] = "\(homebrewPrefix):\(path)"
+        }
+        process.environment = env
+
+        let stdout = Pipe()
+        process.standardOutput = stdout
+        process.standardError = Pipe()
+
+        try process.run()
+        let outputData = stdout.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        return String(data: outputData, encoding: .utf8) ?? ""
+    }
 }

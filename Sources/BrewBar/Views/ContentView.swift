@@ -305,7 +305,11 @@ struct ContentView: View {
                         onExportBundle: { viewModel.exportBundle() },
                         onLoadBundle: { viewModel.loadBundle() },
                         onInstallMissing: { viewModel.installBundleMissing() },
-                        onClearBundle: { viewModel.clearBundle() }
+                        onClearBundle: { viewModel.clearBundle() },
+                        doctorWarnings: viewModel.doctorWarnings,
+                        doctorChecked: viewModel.doctorChecked,
+                        isDoctorRunning: viewModel.isDoctorRunning,
+                        onRunDoctor: { viewModel.runDoctor() }
                     )
                 case .packages:
                     PackagesView(
@@ -353,7 +357,11 @@ struct ContentView: View {
                         onViewLog: { viewModel.fetchServiceLog($0) }
                     )
                 case .info:
-                    InfoView(info: viewModel.info)
+                    InfoView(
+                        info: viewModel.info,
+                        onAddTap: { viewModel.addTap($0) },
+                        onRemoveTap: { viewModel.removeTap($0) }
+                    )
                 }
             }
             .frame(maxHeight: .infinity)

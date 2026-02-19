@@ -2,6 +2,10 @@ import SwiftUI
 
 struct InfoView: View {
     let info: BrewInfo
+    var onAddTap: ((String) -> Void)?
+    var onRemoveTap: ((String) -> Void)?
+
+    @State private var newTapName = ""
 
     private var config: [String: String] { info.brewConfig }
 
@@ -61,13 +65,54 @@ struct InfoView: View {
                     infoRow("Outdated", value: "\(outdatedCount)")
                 }
 
-                let taps = deriveTaps()
-                if !taps.isEmpty {
-                    section("Taps") {
-                        ForEach(taps, id: \.self) { tap in
+                section("Taps") {
+                    ForEach(info.taps, id: \.self) { tap in
+                        HStack {
                             Text(tap)
                                 .font(.caption)
+                            Spacer()
+                            if let onRemoveTap {
+                                Button {
+                                    onRemoveTap(tap)
+                                } label: {
+                                    Image(systemName: "xmark")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .buttonStyle(.borderless)
+                                .help("Remove tap \(tap)")
+                            }
                         }
+                    }
+                    if let onAddTap {
+                        HStack(spacing: 6) {
+                            Image(systemName: "plus.circle")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                            TextField("Add tap (e.g. user/repo)", text: $newTapName)
+                                .textFieldStyle(.plain)
+                                .font(.caption)
+                                .onSubmit {
+                                    guard !newTapName.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+                                    onAddTap(newTapName)
+                                    newTapName = ""
+                                }
+                            if !newTapName.isEmpty {
+                                Button {
+                                    onAddTap(newTapName)
+                                    newTapName = ""
+                                } label: {
+                                    Text("Add")
+                                        .font(.caption)
+                                }
+                                .buttonStyle(.borderless)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                        .padding(.horizontal, 6)
+                        .background(.quaternary.opacity(0.5))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .padding(.top, 2)
                     }
                 }
             }
@@ -102,14 +147,4 @@ struct InfoView: View {
         }
     }
 
-    private func deriveTaps() -> [String] {
-        var taps = Set<String>()
-        for formula in info.formulae {
-            if let tap = formula.tap { taps.insert(tap) }
-        }
-        for cask in info.casks {
-            if let tap = cask.tap { taps.insert(tap) }
-        }
-        return taps.sorted()
-    }
 }
