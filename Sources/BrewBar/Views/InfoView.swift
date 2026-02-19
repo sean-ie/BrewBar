@@ -4,8 +4,20 @@ struct InfoView: View {
     let info: BrewInfo
     var onAddTap: ((String) -> Void)?
     var onRemoveTap: ((String) -> Void)?
+    var recentInstalls: [InstallRecord] = []
+    var brewEvents: [BrewEvent] = []
 
     @State private var newTapName = ""
+
+    private static let relativeDateFormatter: RelativeDateTimeFormatter = {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter
+    }()
+
+    private func relativeDate(_ date: Date) -> String {
+        Self.relativeDateFormatter.localizedString(for: date, relativeTo: Date())
+    }
 
     private var config: [String: String] { info.brewConfig }
 
@@ -116,6 +128,55 @@ struct InfoView: View {
                         .background(.quaternary.opacity(0.5))
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                         .padding(.top, 2)
+                    }
+                }
+
+                section("Recently Installed") {
+                    if recentInstalls.isEmpty {
+                        Text("No install data found.")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    } else {
+                        ForEach(recentInstalls.prefix(15)) { record in
+                            HStack(spacing: 6) {
+                                Text(record.name)
+                                    .font(.caption)
+                                StatusBadge(text: record.isCask ? "cask" : "formula",
+                                            color: record.isCask ? .purple : .blue)
+                                Spacer()
+                                Text(relativeDate(record.date))
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+                    }
+                }
+
+                section("BrewBar Activity") {
+                    if brewEvents.isEmpty {
+                        Text("No activity recorded yet.")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    } else {
+                        ForEach(brewEvents.prefix(20)) { event in
+                            HStack(spacing: 6) {
+                                Image(systemName: event.type.icon)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                if event.packages.count == 1 {
+                                    Text("\(event.type.label) \(event.packages[0])")
+                                        .font(.caption)
+                                } else {
+                                    Text("\(event.type.label) \(event.packages.count) packages")
+                                        .font(.caption)
+                                        .help(event.packages.joined(separator: "\n"))
+                                }
+                                Spacer()
+                                Text(relativeDate(event.date))
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
                     }
                 }
             }

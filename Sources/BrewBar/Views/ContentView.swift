@@ -351,7 +351,9 @@ struct ContentView: View {
                     InfoView(
                         info: viewModel.info,
                         onAddTap: { viewModel.addTap($0) },
-                        onRemoveTap: { viewModel.removeTap($0) }
+                        onRemoveTap: { viewModel.removeTap($0) },
+                        recentInstalls: viewModel.recentInstalls,
+                        brewEvents: viewModel.brewEvents
                     )
                 }
             }

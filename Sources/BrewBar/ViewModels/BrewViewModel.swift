@@ -45,13 +45,19 @@ final class BrewViewModel {
     var depTreeResults: [String: String] = [:]
     var diskUsageResults: [String: String] = [:]
 
+    // History state
+    var recentInstalls: [InstallRecord] = []
+    var brewEvents: [BrewEvent] = []
+
     private let service = BrewDataService()
     private var refreshTimer: Timer?
     private let bundlePathKey = "bundleFilePath"
+    private let eventsKey = "brewEvents"
 
     init() {
         startAutoRefresh()
         loadPersistedBundle()
+        loadPersistedEvents()
     }
 
     // MARK: - Refresh
@@ -90,6 +96,7 @@ final class BrewViewModel {
                         entries: checkBundleStatus(existing.entries)
                     )
                 }
+                fetchRecentInstalls()
             } catch {
                 self.error = error.localizedDescription
             }
@@ -100,13 +107,13 @@ final class BrewViewModel {
     // MARK: - Upgrade actions
 
     func upgradeAll() {
-        performAction("Upgrading all packages...") {
+        performAction("Upgrading all packages...", event: (.upgrade, ["all packages"])) {
             try await self.service.upgradeAll()
         }
     }
 
     func upgrade(package name: String, isCask: Bool = false) {
-        performAction("Upgrading \(name)...") {
+        performAction("Upgrading \(name)...", event: (.upgrade, [name])) {
             try await self.service.upgrade(package: name, isCask: isCask)
         }
     }
@@ -143,7 +150,7 @@ final class BrewViewModel {
     }
 
     func install(package name: String, isCask: Bool) {
-        performAction("Installing \(name)...") {
+        performAction("Installing \(name)...", event: (.install, [name])) {
             try await self.service.install(package: name, isCask: isCask)
         }
     }
@@ -179,14 +186,14 @@ final class BrewViewModel {
     }
 
     private func forceUninstall(package name: String) {
-        performAction("Uninstalling \(name)...") {
+        performAction("Uninstalling \(name)...", event: (.uninstall, [name])) {
             try await self.service.uninstall(package: name, ignoreDependencies: true)
         }
     }
 
     private func forceUninstallAll(packages names: [String]) {
         let label = names.count == 1 ? names[0] : "\(names.count) packages"
-        performAction("Uninstalling \(label)...") {
+        performAction("Uninstalling \(label)...", event: (.uninstall, names)) {
             try await self.service.uninstall(packages: names, ignoreDependencies: true)
         }
     }
@@ -292,12 +299,19 @@ final class BrewViewModel {
 
     // MARK: - Private
 
-    private func performAction(_ description: String, action: @escaping @Sendable () async throws -> String) {
+    private func performAction(
+        _ description: String,
+        event: (BrewEvent.EventType, [String])? = nil,
+        action: @escaping @Sendable () async throws -> String
+    ) {
         actionInProgress = description
         lastActionOutput = nil
         Task {
             do {
                 let output = try await action()
+                if let (type, packages) = event {
+                    appendEvent(type: type, packages: packages)
+                }
                 let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !trimmed.isEmpty {
                     lastActionOutput = trimmed
@@ -307,6 +321,15 @@ final class BrewViewModel {
             }
             actionInProgress = nil
             refresh()
+        }
+    }
+
+    private func appendEvent(type: BrewEvent.EventType, packages: [String]) {
+        let newEvent = BrewEvent(id: UUID(), date: Date(), type: type, packages: packages)
+        brewEvents.insert(newEvent, at: 0)
+        if brewEvents.count > 50 { brewEvents = Array(brewEvents.prefix(50)) }
+        if let data = try? JSONEncoder().encode(brewEvents) {
+            UserDefaults.standard.set(data, forKey: eventsKey)
         }
     }
 
@@ -348,7 +371,7 @@ final class BrewViewModel {
     func upgradeSelected(formulae: [String], casks: [String]) {
         let total = formulae.count + casks.count
         let label = total == 1 ? (formulae.first ?? casks.first ?? "package") : "\(total) packages"
-        performAction("Upgrading \(label)...") {
+        performAction("Upgrading \(label)...", event: (.upgrade, formulae + casks)) {
             try await self.service.upgradeMultiple(formulae: formulae, casks: casks)
         }
     }
@@ -522,5 +545,58 @@ final class BrewViewModel {
                 self?.refresh()
             }
         }
+    }
+
+    // MARK: - Install history
+
+    private func loadPersistedEvents() {
+        guard let data = UserDefaults.standard.data(forKey: eventsKey),
+              let events = try? JSONDecoder().decode([BrewEvent].self, from: data)
+        else { return }
+        brewEvents = events
+    }
+
+    func fetchRecentInstalls() {
+        let cellar = info.brewConfig["HOMEBREW_CELLAR"] ?? "/opt/homebrew/Cellar"
+        let prefix = info.brewConfig["HOMEBREW_PREFIX"] ?? "/opt/homebrew"
+        let caskroom = "\(prefix)/Caskroom"
+        Task {
+            let installs = await Task.detached(priority: .background) {
+                BrewViewModel.scanInstalls(cellar: cellar, caskroom: caskroom)
+            }.value
+            recentInstalls = installs
+        }
+    }
+
+    private nonisolated static func scanInstalls(cellar: String, caskroom: String) -> [InstallRecord] {
+        var results: [InstallRecord] = []
+        let fileManager = FileManager.default
+        let keys: [URLResourceKey] = [.creationDateKey, .isDirectoryKey]
+
+        for (root, isCask) in [(cellar, false), (caskroom, true)] {
+            guard let packageDirs = try? fileManager.contentsOfDirectory(
+                at: URL(fileURLWithPath: root), includingPropertiesForKeys: nil
+            ) else { continue }
+
+            for pkgDir in packageDirs {
+                let name = pkgDir.lastPathComponent
+                guard !name.hasPrefix(".") else { continue }
+                guard let versionDirs = try? fileManager.contentsOfDirectory(
+                    at: pkgDir, includingPropertiesForKeys: keys
+                ) else { continue }
+
+                for versionDir in versionDirs {
+                    guard let vals = try? versionDir.resourceValues(forKeys: Set(keys)),
+                          vals.isDirectory == true,
+                          let date = vals.creationDate
+                    else { continue }
+                    results.append(InstallRecord(
+                        name: name, version: versionDir.lastPathComponent,
+                        date: date, isCask: isCask
+                    ))
+                }
+            }
+        }
+        return results.sorted { $0.date > $1.date }
     }
 }
