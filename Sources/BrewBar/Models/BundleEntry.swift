@@ -29,6 +29,6 @@ struct BrewBundle: Sendable {
     let entries: [BundleEntry]
 
     var installedCount: Int { entries.filter { $0.type.isCheckable && $0.isInstalled }.count }
-    var missingCount: Int   { entries.filter { $0.type.isCheckable && !$0.isInstalled }.count }
+    var missingCount: Int { entries.filter { $0.type.isCheckable && !$0.isInstalled }.count }
     var checkableCount: Int { entries.filter { $0.type.isCheckable }.count }
 }

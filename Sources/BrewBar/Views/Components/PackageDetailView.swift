@@ -13,10 +13,10 @@ struct PackageDetailView: View {
     var requiredBy: [String] = []
     let autoUpdates: Bool
     var pinned: Bool = false
-    var depTree: String? = nil          // nil = not fetched, "…" = loading, "" = no deps
-    var diskUsage: String? = nil        // nil = not fetched, "…" = loading
-    var onFetchDepTree: (() -> Void)? = nil
-    var onFetchDiskUsage: (() -> Void)? = nil
+    var depTree: String?          // nil = not fetched, "…" = loading, "" = no deps
+    var diskUsage: String?        // nil = not fetched, "…" = loading
+    var onFetchDepTree: (() -> Void)?
+    var onFetchDiskUsage: (() -> Void)?
     var onUninstall: ((String) -> Void)?
     var onPin: ((String) -> Void)?
     var onUnpin: ((String) -> Void)?

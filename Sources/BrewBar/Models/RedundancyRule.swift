@@ -12,8 +12,8 @@ struct RedundancyRule: Sendable {
 
         func matches(_ name: String) -> Bool {
             switch self {
-            case .prefix(let p): name.hasPrefix(p)
-            case .exact(let e): name == e
+            case .prefix(let prefix): name.hasPrefix(prefix)
+            case .exact(let exact): name == exact
             }
         }
     }
@@ -36,7 +36,7 @@ extension RedundancyRule {
             patterns: [
                 .prefix("python@"), .exact("pip"), .exact("pipx"),
                 .exact("virtualenv"), .exact("poetry"), .exact("pipenv"),
-                .exact("setuptools"),
+                .exact("setuptools")
             ]
         ),
         RedundancyRule(
@@ -53,7 +53,7 @@ extension RedundancyRule {
             icon: "hare.fill",
             patterns: [
                 .prefix("node@"), .exact("node"),
-                .exact("pnpm"), .exact("yarn"), .exact("npm"),
+                .exact("pnpm"), .exact("yarn"), .exact("npm")
             ]
         ),
         RedundancyRule(
@@ -68,7 +68,7 @@ extension RedundancyRule {
             icon: "bolt.circle",
             patterns: [
                 .prefix("node@"), .exact("node"),
-                .exact("pnpm"), .exact("yarn"), .exact("npm"),
+                .exact("pnpm"), .exact("yarn"), .exact("npm")
             ]
         ),
         RedundancyRule(
@@ -126,7 +126,7 @@ extension RedundancyRule {
                 .prefix("ruby@"), .prefix("go@"), .prefix("openjdk@"),
                 .exact("openjdk"),
                 .exact("pyenv"), .exact("rbenv"), .exact("nodenv"),
-                .exact("goenv"), .exact("jenv"), .exact("fnm"), .exact("nvm"),
+                .exact("goenv"), .exact("jenv"), .exact("fnm"), .exact("nvm")
             ]
         ),
     ]

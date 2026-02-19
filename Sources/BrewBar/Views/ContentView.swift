@@ -1,3 +1,4 @@
+// swiftlint:disable type_body_length
 import SwiftUI
 
 enum Tab: String, CaseIterable {
@@ -180,6 +181,7 @@ struct ContentView: View {
                     let pkgLabel = confirmation.packages.count == 1
                         ? confirmation.packages[0]
                         : "\(confirmation.packages.count) packages"
+                    // swiftlint:disable:next line_length
                     Text("**\(confirmation.dependents.joined(separator: ", "))** depend\(confirmation.dependents.count == 1 ? "s" : "") on \(pkgLabel)")
                         .font(.caption)
                         .lineLimit(2)

@@ -20,8 +20,8 @@ struct PackagesView: View {
     var onUnpin: ((String) -> Void)?
     var depTreeResults: [String: String] = [:]
     var diskUsageResults: [String: String] = [:]
-    var onFetchDepTree: ((String) -> Void)? = nil
-    var onFetchDiskUsage: ((String) -> Void)? = nil
+    var onFetchDepTree: ((String) -> Void)?
+    var onFetchDiskUsage: ((String) -> Void)?
     @State private var searchText = ""
     @State private var searchTask: Task<Void, Never>?
     @State private var formulaeExpanded = true
@@ -72,17 +72,17 @@ struct PackagesView: View {
                     }
                     .buttonStyle(.borderless)
                 }
-                ForEach(PackageFilter.allCases, id: \.self) { f in
+                ForEach(PackageFilter.allCases, id: \.self) { pkgFilter in
                     Button {
-                        filter = f
+                        filter = pkgFilter
                     } label: {
-                        Text(f.rawValue)
+                        Text(pkgFilter.rawValue)
                             .font(.caption2)
                             .fontWeight(.medium)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 3)
-                            .background(filter == f ? Color.accentColor.opacity(0.15) : Color.secondary.opacity(0.1))
-                            .foregroundStyle(filter == f ? Color.accentColor : .secondary)
+                            .background(filter == pkgFilter ? Color.accentColor.opacity(0.15) : Color.secondary.opacity(0.1))
+                            .foregroundStyle(filter == pkgFilter ? Color.accentColor : .secondary)
                             .clipShape(Capsule())
                     }
                     .buttonStyle(.plain)
@@ -128,6 +128,7 @@ struct PackagesView: View {
                                 ? filteredFormulae.filter { !$0.installedOnRequest }.count
                                 : nil
                             let subtitle = depCount.map { $0 > 0 ? " · \($0) deps" : "" } ?? ""
+                            // swiftlint:disable:next line_length
                             collapsibleHeader("Formulae (\(filteredFormulae.count)\(subtitle))", expanded: $formulaeExpanded)
                         }
                     }
@@ -158,6 +159,7 @@ struct PackagesView: View {
                         }
                     }
 
+                    // swiftlint:disable:next line_length
                     if filteredFormulae.isEmpty && filteredCasks.isEmpty && searchResults.formulae.isEmpty && searchResults.casks.isEmpty && !isSearching {
                         Text(searchText.isEmpty ? "No packages found" : "No results for \"\(searchText)\"")
                             .foregroundStyle(.secondary)

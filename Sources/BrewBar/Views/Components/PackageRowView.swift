@@ -13,10 +13,10 @@ struct PackageRowView: View {
     var requiredBy: [String] = []
     let autoUpdates: Bool
     var pinned: Bool = false
-    var depTree: String? = nil
-    var diskUsage: String? = nil
-    var onFetchDepTree: (() -> Void)? = nil
-    var onFetchDiskUsage: (() -> Void)? = nil
+    var depTree: String?
+    var diskUsage: String?
+    var onFetchDepTree: (() -> Void)?
+    var onFetchDiskUsage: (() -> Void)?
     var onUninstall: ((String) -> Void)?
     var onPin: ((String) -> Void)?
     var onUnpin: ((String) -> Void)?

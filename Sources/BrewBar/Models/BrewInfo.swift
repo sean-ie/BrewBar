@@ -16,6 +16,7 @@ struct BrewInfo: Sendable {
 
 // MARK: - JSON DTOs for `brew info --json=v2 --installed`
 
+// swiftlint:disable identifier_name
 struct BrewInfoJSON: Decodable, Sendable {
     let formulae: [FormulaJSON]
     let casks: [CaskJSON]
@@ -163,3 +164,4 @@ struct ServiceInfoJSON: Decodable, Sendable {
     let log_path: String?
     let error_log_path: String?
 }
+// swiftlint:enable identifier_name

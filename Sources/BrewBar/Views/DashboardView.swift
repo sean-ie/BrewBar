@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import SwiftUI
 
 struct DashboardView: View {
@@ -16,6 +17,7 @@ struct DashboardView: View {
     var isDoctorRunning: Bool = false
     var onRunDoctor: (() -> Void)?
 
+    // swiftlint:disable:next large_tuple
     private var detectedTools: [(name: String, version: String, icon: String, path: String?)] {
         let toolDefs: [(name: String, icon: String)] = [
             ("uv", "bolt.fill"),
@@ -26,7 +28,7 @@ struct DashboardView: View {
             ("pyenv", "arrow.triangle.branch"),
             ("rbenv", "arrow.triangle.branch"),
             ("rustup", "gearshape.2"),
-            ("goenv", "arrow.triangle.branch"),
+            ("goenv", "arrow.triangle.branch")
         ]
         return toolDefs.compactMap { tool in
             guard let formula = info.formulae.first(where: { $0.name == tool.name }) else { return nil }

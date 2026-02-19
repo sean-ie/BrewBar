@@ -9,8 +9,11 @@ struct InfoView: View {
 
     private var config: [String: String] { info.brewConfig }
 
+    // swiftlint:disable:next large_tuple
     private var detectedDevTools: [(name: String, version: String, path: String?)] {
-        let toolNames = ["uv", "bun", "mise", "fnm", "volta", "pyenv", "rbenv", "rustup", "goenv", "jenv", "chruby", "nvm"]
+        let toolNames = [
+            "uv", "bun", "mise", "fnm", "volta", "pyenv", "rbenv", "rustup", "goenv", "jenv", "chruby", "nvm"
+        ]
         return toolNames.compactMap { name in
             guard let formula = info.formulae.first(where: { $0.name == name }) else { return nil }
             return (name: name, version: formula.version, path: info.toolPaths[name])

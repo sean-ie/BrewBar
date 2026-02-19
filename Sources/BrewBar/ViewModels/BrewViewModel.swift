@@ -1,3 +1,4 @@
+// swiftlint:disable file_length type_body_length
 import AppKit
 import Foundation
 import SwiftUI
@@ -68,7 +69,8 @@ final class BrewViewModel {
                 async let config = service.fetchConfig()
                 async let taps = service.fetchTaps()
 
-                let (installedResult, outdatedResult, servicesResult, configResult, tapsResult) = try await (installed, outdated, services, config, taps)
+                let (installedResult, outdatedResult, servicesResult, configResult, tapsResult) =
+                    try await (installed, outdated, services, config, taps)
 
                 info.formulae = installedResult.formulae
                 info.casks = installedResult.casks
@@ -387,11 +389,11 @@ final class BrewViewModel {
     }
 
     private nonisolated static func directorySize(at path: String) -> String {
-        let fm = FileManager.default
-        guard fm.fileExists(atPath: path) else { return "—" }
+        let fileManager = FileManager.default
+        guard fileManager.fileExists(atPath: path) else { return "—" }
         var size: Int64 = 0
         let keys: [URLResourceKey] = [.fileSizeKey, .isRegularFileKey]
-        if let enumerator = fm.enumerator(at: URL(fileURLWithPath: path),
+        if let enumerator = fileManager.enumerator(at: URL(fileURLWithPath: path),
                                           includingPropertiesForKeys: keys) {
             for case let url as URL in enumerator {
                 guard let values = try? url.resourceValues(forKeys: Set(keys)),
@@ -452,9 +454,9 @@ final class BrewViewModel {
     }
 
     func installBundleMissing() {
-        guard let b = bundle else { return }
+        guard let brewBundle = bundle else { return }
         performAction("Installing missing Brewfile entries...") {
-            try await self.service.installBundle(at: b.path)
+            try await self.service.installBundle(at: brewBundle.path)
         }
     }
 
@@ -487,9 +489,9 @@ final class BrewViewModel {
         for line in content.components(separatedBy: .newlines) {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             guard !trimmed.hasPrefix("#"), !trimmed.isEmpty else { continue }
-            if let m = trimmed.firstMatch(of: pattern) {
-                let type = BundleEntry.EntryType(rawValue: String(m.1)) ?? .brew
-                entries.append(BundleEntry(type: type, name: String(m.2), isInstalled: false))
+            if let match = trimmed.firstMatch(of: pattern) {
+                let type = BundleEntry.EntryType(rawValue: String(match.1)) ?? .brew
+                entries.append(BundleEntry(type: type, name: String(match.2), isInstalled: false))
             }
         }
         return entries
@@ -500,17 +502,17 @@ final class BrewViewModel {
         let formulaeFullNames = Set(info.formulae.map(\.fullName))
         let casksSet          = Set(info.casks.map(\.token))
         return entries.map { entry in
-            var e = entry
-            switch e.type {
+            var updated = entry
+            switch updated.type {
             case .brew:
                 // Brewfile may use the short name ("bun") or the full tap path ("oven-sh/bun/bun")
-                e.isInstalled = formulaeNames.contains(e.name) || formulaeFullNames.contains(e.name)
+                updated.isInstalled = formulaeNames.contains(updated.name) || formulaeFullNames.contains(updated.name)
             case .cask:
-                e.isInstalled = casksSet.contains(e.name)
+                updated.isInstalled = casksSet.contains(updated.name)
             default:
-                e.isInstalled = true   // taps/mas/vscode not checked — shown neutral
+                updated.isInstalled = true   // taps/mas/vscode not checked — shown neutral
             }
-            return e
+            return updated
         }
     }
 

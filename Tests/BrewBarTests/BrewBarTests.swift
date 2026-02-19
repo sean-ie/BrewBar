@@ -22,11 +22,11 @@ final class BundleEntryTests: XCTestCase {
     }
 
     func test_id_isUniquePerTypeAndName() {
-        let a = BundleEntry(type: .brew, name: "git", isInstalled: false)
-        let b = BundleEntry(type: .cask, name: "git", isInstalled: false)
-        XCTAssertEqual(a.id, "brew:git")
-        XCTAssertEqual(b.id, "cask:git")
-        XCTAssertNotEqual(a.id, b.id)
+        let entryA = BundleEntry(type: .brew, name: "git", isInstalled: false)
+        let entryB = BundleEntry(type: .cask, name: "git", isInstalled: false)
+        XCTAssertEqual(entryA.id, "brew:git")
+        XCTAssertEqual(entryB.id, "cask:git")
+        XCTAssertNotEqual(entryA.id, entryB.id)
     }
 }
 
@@ -40,29 +40,29 @@ final class BrewBundleTests: XCTestCase {
 
     func test_counts_excludeNonCheckableEntries() {
         let bundle = makeBundle([
-            BundleEntry(type: .brew, name: "git",         isInstalled: true),
-            BundleEntry(type: .brew, name: "tree",        isInstalled: false),
-            BundleEntry(type: .cask, name: "firefox",     isInstalled: true),
-            BundleEntry(type: .tap,  name: "oven-sh/bun", isInstalled: true), // not checkable
+            BundleEntry(type: .brew, name: "git", isInstalled: true),
+            BundleEntry(type: .brew, name: "tree", isInstalled: false),
+            BundleEntry(type: .cask, name: "firefox", isInstalled: true),
+            BundleEntry(type: .tap, name: "oven-sh/bun", isInstalled: true) // not checkable
         ])
         XCTAssertEqual(bundle.checkableCount, 3)
         XCTAssertEqual(bundle.installedCount, 2)
-        XCTAssertEqual(bundle.missingCount,   1)
+        XCTAssertEqual(bundle.missingCount, 1)
     }
 
     func test_emptyBundle() {
         let bundle = makeBundle([])
         XCTAssertEqual(bundle.installedCount, 0)
-        XCTAssertEqual(bundle.missingCount,   0)
+        XCTAssertEqual(bundle.missingCount, 0)
         XCTAssertEqual(bundle.checkableCount, 0)
     }
 
     func test_allInstalled() {
         let bundle = makeBundle([
-            BundleEntry(type: .brew, name: "git",  isInstalled: true),
-            BundleEntry(type: .cask, name: "zoom", isInstalled: true),
+            BundleEntry(type: .brew, name: "git", isInstalled: true),
+            BundleEntry(type: .cask, name: "zoom", isInstalled: true)
         ])
-        XCTAssertEqual(bundle.missingCount,   0)
+        XCTAssertEqual(bundle.missingCount, 0)
         XCTAssertEqual(bundle.installedCount, 2)
     }
 }
@@ -99,12 +99,12 @@ final class FormulaJSONTests: XCTestCase {
     }
 
     func test_basicFields() {
-        let f = makeJSON().toFormula()
-        XCTAssertEqual(f.name,        "git")
-        XCTAssertEqual(f.version,     "2.43.0")
-        XCTAssertEqual(f.description, "Distributed version control")
-        XCTAssertFalse(f.outdated)
-        XCTAssertFalse(f.pinned)
+        let formula = makeJSON().toFormula()
+        XCTAssertEqual(formula.name, "git")
+        XCTAssertEqual(formula.version, "2.43.0")
+        XCTAssertEqual(formula.description, "Distributed version control")
+        XCTAssertFalse(formula.outdated)
+        XCTAssertFalse(formula.pinned)
     }
 
     func test_installedOnRequest_isPreserved() {
@@ -123,8 +123,8 @@ final class FormulaJSONTests: XCTestCase {
     }
 
     func test_dependencies() {
-        let f = makeJSON(dependencies: ["openssl@3", "zlib"]).toFormula()
-        XCTAssertEqual(f.dependencies, ["openssl@3", "zlib"])
+        let formula = makeJSON(dependencies: ["openssl@3", "zlib"]).toFormula()
+        XCTAssertEqual(formula.dependencies, ["openssl@3", "zlib"])
     }
 }
 

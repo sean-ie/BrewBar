@@ -71,8 +71,9 @@ struct OutdatedView: View {
                                 } else {
                                     selectedFormulae.insert(formula.name)
                                 }
-                            }
-                        ) { onUpgrade(formula.name, false) }
+                            },
+                            onUpgrade: { onUpgrade(formula.name, false) }
+                        )
                         Divider()
                     }
                     ForEach(casks) { cask in
@@ -89,8 +90,9 @@ struct OutdatedView: View {
                                 } else {
                                     selectedCasks.insert(cask.token)
                                 }
-                            }
-                        ) { onUpgrade(cask.token, true) }
+                            },
+                            onUpgrade: { onUpgrade(cask.token, true) }
+                        )
                         Divider()
                     }
 

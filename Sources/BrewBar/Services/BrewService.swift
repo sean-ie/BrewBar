@@ -49,17 +49,19 @@ actor BrewDataService {
 
     // MARK: - Resolve tool paths
 
-    static let trackedTools = ["uv", "bun", "mise", "fnm", "volta", "pyenv", "rbenv", "rustup", "goenv", "jenv", "chruby", "nvm"]
+    static let trackedTools = [
+        "uv", "bun", "mise", "fnm", "volta", "pyenv", "rbenv", "rustup", "goenv", "jenv", "chruby", "nvm"
+    ]
 
     func resolveToolPaths(for installedNames: Set<String>) -> [String: String] {
-        let fm = FileManager.default
+        let fileManager = FileManager.default
         let searchPaths = ["/opt/homebrew/bin", "/usr/local/bin"]
 
         var paths: [String: String] = [:]
         for tool in Self.trackedTools where installedNames.contains(tool) {
             for dir in searchPaths {
                 let fullPath = "\(dir)/\(tool)"
-                if fm.fileExists(atPath: fullPath) {
+                if fileManager.fileExists(atPath: fullPath) {
                     paths[tool] = fullPath
                     break
                 }
@@ -116,8 +118,8 @@ actor BrewDataService {
         guard let svcInfo = infoArray.first, let logPath = svcInfo.log_path else {
             return "No log file found for \(name)."
         }
-        let fm = FileManager.default
-        guard fm.fileExists(atPath: logPath) else {
+        let fileManager = FileManager.default
+        guard fileManager.fileExists(atPath: logPath) else {
             return "Log file not found at \(logPath)."
         }
         let url = URL(fileURLWithPath: logPath)
