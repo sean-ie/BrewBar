@@ -135,17 +135,17 @@ actor BrewDataService {
     // MARK: - Search & Install
 
     func searchPackages(_ query: String) async throws -> (formulae: [String], casks: [String]) {
-        async let formulaeOutput = process.runString(["search", "--formula", query])
-        async let casksOutput = process.runString(["search", "--cask", query])
+        async let formulaeOutput = process.runStringAllowingFailure(["search", "--formula", query])
+        async let casksOutput = process.runStringAllowingFailure(["search", "--cask", query])
 
         let (fOut, cOut) = try await (formulaeOutput, casksOutput)
 
         let formulae = fOut.components(separatedBy: .newlines)
             .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
+            .filter { !$0.isEmpty && !$0.hasPrefix("==>") }
         let casks = cOut.components(separatedBy: .newlines)
             .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
+            .filter { !$0.isEmpty && !$0.hasPrefix("==>") }
 
         return (formulae, casks)
     }
@@ -208,6 +208,34 @@ actor BrewDataService {
 
     func installBundle(at path: String) async throws -> String {
         try await process.runString(["bundle", "install", "--file=\(path)"])
+    }
+
+    // MARK: - Analytics
+
+    func fetchAnalytics() async throws -> BrewAnalytics {
+        let formulaeURL = URL(string: "https://formulae.brew.sh/api/analytics/install/homebrew-core/30d.json")!
+        let casksURL = URL(string: "https://formulae.brew.sh/api/analytics/cask-install/homebrew-cask/30d.json")!
+
+        async let formulaeResponse = URLSession.shared.data(from: formulaeURL)
+        async let casksResponse = URLSession.shared.data(from: casksURL)
+
+        let (fData, cData) = try await (formulaeResponse, casksResponse)
+
+        var analytics = BrewAnalytics()
+
+        if let fJson = try? decoder.decode(AnalyticsResponseJSON.self, from: fData.0) {
+            for (name, entries) in fJson.entries {
+                analytics.formulaInstalls[name] = entries.reduce(0) { $0 + $1.parsedCount }
+            }
+        }
+
+        if let cJson = try? decoder.decode(AnalyticsResponseJSON.self, from: cData.0) {
+            for (name, entries) in cJson.entries {
+                analytics.caskInstalls[name] = entries.reduce(0) { $0 + $1.parsedCount }
+            }
+        }
+
+        return analytics
     }
 
     // MARK: - Uninstall

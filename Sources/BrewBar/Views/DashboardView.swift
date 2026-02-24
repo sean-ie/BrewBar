@@ -18,7 +18,7 @@ struct DashboardView: View {
     var onRunDoctor: (() -> Void)?
 
     // swiftlint:disable:next large_tuple
-    private var detectedTools: [(name: String, version: String, icon: String, path: String?)] {
+    private var detectedTools: [(name: String, version: String, icon: String, path: String?, description: String?, homepage: String?)] {
         let toolDefs: [(name: String, icon: String)] = [
             ("uv", "bolt.fill"),
             ("bun", "hare.fill"),
@@ -32,9 +32,11 @@ struct DashboardView: View {
         ]
         return toolDefs.compactMap { tool in
             guard let formula = info.formulae.first(where: { $0.name == tool.name }) else { return nil }
-            return (name: tool.name, version: formula.version, icon: tool.icon, path: info.toolPaths[tool.name])
+            return (name: tool.name, version: formula.version, icon: tool.icon, path: info.toolPaths[tool.name], description: formula.description, homepage: formula.homepage)
         }
     }
+
+    @State private var expandedTool: String?
 
     var body: some View {
         ScrollView {
@@ -177,22 +179,62 @@ struct DashboardView: View {
                         .foregroundStyle(.secondary)
                     HStack(spacing: 6) {
                         ForEach(detectedTools, id: \.name) { tool in
-                            HStack(spacing: 3) {
-                                Image(systemName: tool.icon)
-                                    .font(.system(size: 8))
-                                    .foregroundStyle(.secondary)
-                                Text(tool.name)
-                                    .font(.caption)
-                                    .fontWeight(.medium)
-                                Text(tool.version)
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
+                            Button {
+                                expandedTool = expandedTool == tool.name ? nil : tool.name
+                            } label: {
+                                HStack(spacing: 3) {
+                                    Image(systemName: tool.icon)
+                                        .font(.system(size: 8))
+                                        .foregroundStyle(.secondary)
+                                    Text(tool.name)
+                                        .font(.caption)
+                                        .fontWeight(.medium)
+                                    Text(tool.version)
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 3)
+                                .background(.quaternary.opacity(0.5))
+                                .clipShape(Capsule())
                             }
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 3)
-                            .background(.quaternary.opacity(0.5))
-                            .clipShape(Capsule())
-                            .help(tool.path ?? tool.name)
+                            .buttonStyle(.plain)
+                            .popover(isPresented: Binding(
+                                get: { expandedTool == tool.name },
+                                set: { if !$0 { expandedTool = nil } }
+                            )) {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: tool.icon)
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                        Text(tool.name)
+                                            .font(.caption)
+                                            .fontWeight(.semibold)
+                                        Text(tool.version)
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    if let description = tool.description {
+                                        Text(description)
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    if let path = tool.path {
+                                        Text(path)
+                                            .font(.caption2)
+                                            .foregroundStyle(.tertiary)
+                                            .lineLimit(1)
+                                    }
+                                    if let homepage = tool.homepage, let url = URL(string: homepage) {
+                                        Link(homepage, destination: url)
+                                            .font(.caption2)
+                                            .lineLimit(1)
+                                    }
+                                }
+                                .padding(10)
+                                .frame(minWidth: 200, maxWidth: 280)
+                            }
                         }
                     }
                 }

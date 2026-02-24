@@ -7,6 +7,7 @@ enum Tab: String, CaseIterable {
     case outdated = "Outdated"
     case services = "Services"
     case info = "Info"
+    case popular = "Popular"
 
     var icon: String {
         switch self {
@@ -15,6 +16,7 @@ enum Tab: String, CaseIterable {
         case .outdated: "exclamationmark.arrow.circlepath"
         case .services: "gearshape.2"
         case .info: "info.circle"
+        case .popular: "chart.bar.fill"
         }
     }
 }
@@ -318,6 +320,7 @@ struct ContentView: View {
                         formulae: viewModel.info.formulae,
                         casks: viewModel.info.casks,
                         filter: $packageFilter,
+                        analytics: viewModel.info.analytics,
                         searchResults: viewModel.searchResults,
                         isSearching: viewModel.isSearching,
                         onSearchBrew: { viewModel.searchBrewPackages($0) },
@@ -354,6 +357,13 @@ struct ContentView: View {
                         onRemoveTap: { viewModel.removeTap($0) },
                         recentInstalls: viewModel.recentInstalls,
                         brewEvents: viewModel.brewEvents
+                    )
+                case .popular:
+                    PopularView(
+                        analytics: viewModel.info.analytics,
+                        installedFormulae: Set(viewModel.info.formulae.map(\.name)),
+                        installedCasks: Set(viewModel.info.casks.map(\.token)),
+                        onInstall: { viewModel.install(package: $0, isCask: $1) }
                     )
                 }
             }

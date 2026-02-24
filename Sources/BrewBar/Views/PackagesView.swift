@@ -10,6 +10,7 @@ struct PackagesView: View {
     let formulae: [Formula]
     let casks: [Cask]
     @Binding var filter: PackageFilter
+    var analytics: BrewAnalytics = BrewAnalytics()
     var searchResults: (formulae: [String], casks: [String]) = ([], [])
     var isSearching: Bool = false
     var onSearchBrew: ((String) -> Void)?
@@ -24,6 +25,7 @@ struct PackagesView: View {
     var onFetchDiskUsage: ((String) -> Void)?
     @State private var searchText = ""
     @State private var searchTask: Task<Void, Never>?
+    @State private var isPendingSearch = false
     @State private var formulaeExpanded = true
     @State private var casksExpanded = true
 
@@ -111,6 +113,7 @@ struct PackagesView: View {
                                         requiredBy: reverseDeps[formula.name, default: []].sorted(),
                                         autoUpdates: false,
                                         pinned: formula.pinned,
+                                        installCount: analytics.formulaInstalls[formula.name],
                                         depTree: depTreeResults[formula.name],
                                         diskUsage: diskUsageResults[formula.name],
                                         onFetchDepTree: { onFetchDepTree?(formula.name) },
@@ -148,6 +151,7 @@ struct PackagesView: View {
                                         dependencies: [],
                                         buildDependencies: [],
                                         autoUpdates: cask.autoUpdates,
+                                        installCount: analytics.caskInstalls[cask.token],
                                         onUninstall: onUninstall
                                     )
                                     .padding(.horizontal, 8)
@@ -160,7 +164,7 @@ struct PackagesView: View {
                     }
 
                     // swiftlint:disable:next line_length
-                    if filteredFormulae.isEmpty && filteredCasks.isEmpty && searchResults.formulae.isEmpty && searchResults.casks.isEmpty && !isSearching {
+                    if filteredFormulae.isEmpty && filteredCasks.isEmpty && searchResults.formulae.isEmpty && searchResults.casks.isEmpty && !isSearching && !isPendingSearch {
                         Text(searchText.isEmpty ? "No packages found" : "No results for \"\(searchText)\"")
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity)
@@ -168,7 +172,7 @@ struct PackagesView: View {
                     }
 
                     // Remote search results
-                    if isSearching {
+                    if isSearching || isPendingSearch {
                         HStack {
                             ProgressView()
                                 .controlSize(.small)
@@ -183,8 +187,13 @@ struct PackagesView: View {
                     if !searchResults.formulae.isEmpty {
                         Section {
                             ForEach(searchResults.formulae, id: \.self) { name in
-                                SearchResultRow(name: name, isCask: false, onInstall: onInstall)
-                                    .padding(.horizontal, 8)
+                                SearchResultRow(
+                                    name: name,
+                                    isCask: false,
+                                    installCount: analytics.formulaInstalls[name],
+                                    onInstall: onInstall
+                                )
+                                .padding(.horizontal, 8)
                                 Divider()
                             }
                         } header: {
@@ -195,8 +204,13 @@ struct PackagesView: View {
                     if !searchResults.casks.isEmpty {
                         Section {
                             ForEach(searchResults.casks, id: \.self) { name in
-                                SearchResultRow(name: name, isCask: true, onInstall: onInstall)
-                                    .padding(.horizontal, 8)
+                                SearchResultRow(
+                                    name: name,
+                                    isCask: true,
+                                    installCount: analytics.caskInstalls[name],
+                                    onInstall: onInstall
+                                )
+                                .padding(.horizontal, 8)
                                 Divider()
                             }
                         } header: {
@@ -213,10 +227,15 @@ struct PackagesView: View {
                 casksExpanded = true
             }
             searchTask?.cancel()
-            guard !searchText.isEmpty else { return }
+            guard !searchText.isEmpty else {
+                isPendingSearch = false
+                return
+            }
+            isPendingSearch = true
             searchTask = Task {
                 try? await Task.sleep(for: .milliseconds(500))
                 guard !Task.isCancelled else { return }
+                isPendingSearch = false
                 onSearchBrew?(searchText)
             }
         }
@@ -262,6 +281,7 @@ struct PackagesView: View {
 private struct SearchResultRow: View {
     let name: String
     let isCask: Bool
+    var installCount: Int?
     var onInstall: ((String, Bool) -> Void)?
 
     var body: some View {
@@ -270,9 +290,16 @@ private struct SearchResultRow: View {
                 Text(name)
                     .font(.caption)
                     .fontWeight(.medium)
-                Text(isCask ? "Cask" : "Formula")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 4) {
+                    Text(isCask ? "Cask" : "Formula")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    if let count = installCount, count > 0 {
+                        Text("· \(formatCount(count)) installs")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
             }
             Spacer()
             if let onInstall {
@@ -286,5 +313,15 @@ private struct SearchResultRow: View {
             }
         }
         .padding(.vertical, 4)
+    }
+
+    private func formatCount(_ count: Int) -> String {
+        if count >= 1_000_000 {
+            String(format: "%.1fM", Double(count) / 1_000_000)
+        } else if count >= 1_000 {
+            String(format: "%.1fK", Double(count) / 1_000)
+        } else {
+            "\(count)"
+        }
     }
 }

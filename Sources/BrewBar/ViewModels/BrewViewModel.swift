@@ -74,6 +74,7 @@ final class BrewViewModel {
                 async let services = service.fetchServices()
                 async let config = service.fetchConfig()
                 async let taps = service.fetchTaps()
+                async let analyticsTask = service.fetchAnalytics()
 
                 let (installedResult, outdatedResult, servicesResult, configResult, tapsResult) =
                     try await (installed, outdated, services, config, taps)
@@ -88,6 +89,7 @@ final class BrewViewModel {
                 info.redundantPackages = detectRedundancies(in: installedResult.formulae)
                 let installedNames = Set(installedResult.formulae.map(\.name))
                 info.toolPaths = await service.resolveToolPaths(for: installedNames)
+                info.analytics = (try? await analyticsTask) ?? BrewAnalytics()
 
                 if let existing = bundle {
                     bundle = BrewBundle(

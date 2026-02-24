@@ -13,6 +13,7 @@ struct PackageRowView: View {
     var requiredBy: [String] = []
     let autoUpdates: Bool
     var pinned: Bool = false
+    var installCount: Int? = nil
     var depTree: String?
     var diskUsage: String?
     var onFetchDepTree: (() -> Void)?
@@ -22,6 +23,16 @@ struct PackageRowView: View {
     var onUnpin: ((String) -> Void)?
 
     @State private var showDetail = false
+
+    private func formatCount(_ count: Int) -> String {
+        if count >= 1_000_000 {
+            String(format: "%.1fM", Double(count) / 1_000_000)
+        } else if count >= 1_000 {
+            String(format: "%.1fK", Double(count) / 1_000)
+        } else {
+            "\(count)"
+        }
+    }
 
     var body: some View {
         Button {
@@ -52,9 +63,16 @@ struct PackageRowView: View {
                     }
                 }
                 Spacer()
-                Text(version)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 4) {
+                    if let count = installCount, count > 0 {
+                        Text("· \(formatCount(count))")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    Text(version)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
             .padding(.vertical, 2)
             .contentShape(Rectangle())

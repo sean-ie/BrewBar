@@ -12,6 +12,7 @@ struct BrewInfo: Sendable {
     var redundantPackages: [RedundantPackage] = []
     var toolPaths: [String: String] = [:]  // tool name → binary path
     var taps: [String] = []
+    var analytics: BrewAnalytics = BrewAnalytics()
 }
 
 // MARK: - JSON DTOs for `brew info --json=v2 --installed`
