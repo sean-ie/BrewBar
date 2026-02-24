@@ -1,21 +1,19 @@
 import Foundation
 
 actor BrewProcess {
-    private let brewPath: String
+    private var brewPath: String {
+        if FileManager.default.fileExists(atPath: "/opt/homebrew/bin/brew") {
+            return "/opt/homebrew/bin/brew"
+        } else if FileManager.default.fileExists(atPath: "/usr/local/bin/brew") {
+            return "/usr/local/bin/brew"
+        } else {
+            return "brew"
+        }
+    }
 
     static var isInstalled: Bool {
         FileManager.default.fileExists(atPath: "/opt/homebrew/bin/brew") ||
         FileManager.default.fileExists(atPath: "/usr/local/bin/brew")
-    }
-
-    init() {
-        if FileManager.default.fileExists(atPath: "/opt/homebrew/bin/brew") {
-            self.brewPath = "/opt/homebrew/bin/brew"
-        } else if FileManager.default.fileExists(atPath: "/usr/local/bin/brew") {
-            self.brewPath = "/usr/local/bin/brew"
-        } else {
-            self.brewPath = "brew"
-        }
     }
 
     struct BrewError: Error, LocalizedError {
