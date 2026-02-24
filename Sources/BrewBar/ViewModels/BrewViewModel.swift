@@ -54,11 +54,17 @@ final class BrewViewModel {
     private var refreshTimer: Timer?
     private let bundlePathKey = "bundleFilePath"
     private let eventsKey = "brewEvents"
+    private var refreshObserver: NSObjectProtocol?
 
     init() {
         startAutoRefresh()
         loadPersistedBundle()
         loadPersistedEvents()
+        refreshObserver = NotificationCenter.default.addObserver(
+            forName: .brewBarRefreshRequested, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.refresh() }
+        }
     }
 
     // MARK: - Refresh

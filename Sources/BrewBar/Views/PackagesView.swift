@@ -295,7 +295,7 @@ private struct SearchResultRow: View {
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                     if let count = installCount, count > 0 {
-                        Text("· \(formatCount(count)) installs")
+                        Text("· \(formatCount(count)) installs / 30d")
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
                     }

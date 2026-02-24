@@ -68,6 +68,7 @@ struct PackageRowView: View {
                         Text("· \(formatCount(count))")
                             .font(.caption)
                             .foregroundStyle(.tertiary)
+                            .help("\(count) installs in the last 30 days")
                     }
                     Text(version)
                         .font(.caption)

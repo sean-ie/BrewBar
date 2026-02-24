@@ -31,6 +31,10 @@ struct PopularView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 6) {
+                Text("30-day installs")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                Spacer()
                 ForEach(PopularFilter.allCases, id: \.self) { f in
                     Button {
                         filter = f
@@ -118,7 +122,7 @@ private struct PopularRowView: View {
                 Text(name)
                     .font(.caption)
                     .fontWeight(.medium)
-                Text(formatCount(count))
+                Text("\(formatCount(count)) / 30d")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
