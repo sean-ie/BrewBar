@@ -74,21 +74,22 @@ final class BrewViewModel {
             async let analyticsTask = service.fetchAnalytics()
 
             if brewInstalled {
-                do {
-                    async let installed = service.fetchInstalled()
-                    async let outdated = service.fetchOutdated()
-                    async let services = service.fetchServices()
-                    async let config = service.fetchConfig()
-                    async let taps = service.fetchTaps()
+                // All five fetches start concurrently.
+                async let installed = service.fetchInstalled()
+                async let outdated = service.fetchOutdated()
+                async let services = service.fetchServices()
+                async let config = service.fetchConfig()
+                async let taps = service.fetchTaps()
 
-                    let (installedResult, outdatedResult, servicesResult, configResult, tapsResult) =
-                        try await (installed, outdated, services, config, taps)
+                // Core data — surface errors if these fail.
+                do {
+                    let (installedResult, outdatedResult, configResult, tapsResult) =
+                        try await (installed, outdated, config, taps)
 
                     info.formulae = installedResult.formulae
                     info.casks = installedResult.casks
                     info.outdatedFormulae = outdatedResult.formulae
                     info.outdatedCasks = outdatedResult.casks
-                    info.services = servicesResult
                     info.brewConfig = configResult
                     info.taps = tapsResult
                     info.redundantPackages = detectRedundancies(in: installedResult.formulae)
@@ -106,6 +107,10 @@ final class BrewViewModel {
                 } catch {
                     self.error = error.localizedDescription
                 }
+
+                // Services is isolated — its JSON format varies across brew versions
+                // and a failure here must not prevent packages/config from loading.
+                info.services = (try? await services) ?? []
             }
 
             info.analytics = (try? await analyticsTask) ?? BrewAnalytics()
