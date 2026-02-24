@@ -3,6 +3,11 @@ import Foundation
 actor BrewProcess {
     private let brewPath: String
 
+    static var isInstalled: Bool {
+        FileManager.default.fileExists(atPath: "/opt/homebrew/bin/brew") ||
+        FileManager.default.fileExists(atPath: "/usr/local/bin/brew")
+    }
+
     init() {
         if FileManager.default.fileExists(atPath: "/opt/homebrew/bin/brew") {
             self.brewPath = "/opt/homebrew/bin/brew"

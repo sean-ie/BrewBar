@@ -17,6 +17,7 @@ struct CleanupPreview {
 @Observable
 final class BrewViewModel {
     var info = BrewInfo()
+    var brewInstalled = BrewProcess.isInstalled
     var isLoading = false
     var error: String?
     var actionInProgress: String?
@@ -66,42 +67,48 @@ final class BrewViewModel {
         guard !isLoading else { return }
         isLoading = true
         error = nil
+        brewInstalled = BrewProcess.isInstalled
 
         Task {
-            do {
-                async let installed = service.fetchInstalled()
-                async let outdated = service.fetchOutdated()
-                async let services = service.fetchServices()
-                async let config = service.fetchConfig()
-                async let taps = service.fetchTaps()
-                async let analyticsTask = service.fetchAnalytics()
+            // Analytics is a pure network call — runs regardless of whether brew is installed.
+            async let analyticsTask = service.fetchAnalytics()
 
-                let (installedResult, outdatedResult, servicesResult, configResult, tapsResult) =
-                    try await (installed, outdated, services, config, taps)
+            if brewInstalled {
+                do {
+                    async let installed = service.fetchInstalled()
+                    async let outdated = service.fetchOutdated()
+                    async let services = service.fetchServices()
+                    async let config = service.fetchConfig()
+                    async let taps = service.fetchTaps()
 
-                info.formulae = installedResult.formulae
-                info.casks = installedResult.casks
-                info.outdatedFormulae = outdatedResult.formulae
-                info.outdatedCasks = outdatedResult.casks
-                info.services = servicesResult
-                info.brewConfig = configResult
-                info.taps = tapsResult
-                info.redundantPackages = detectRedundancies(in: installedResult.formulae)
-                let installedNames = Set(installedResult.formulae.map(\.name))
-                info.toolPaths = await service.resolveToolPaths(for: installedNames)
-                info.analytics = (try? await analyticsTask) ?? BrewAnalytics()
+                    let (installedResult, outdatedResult, servicesResult, configResult, tapsResult) =
+                        try await (installed, outdated, services, config, taps)
 
-                if let existing = bundle {
-                    bundle = BrewBundle(
-                        path: existing.path,
-                        displayName: existing.displayName,
-                        entries: checkBundleStatus(existing.entries)
-                    )
+                    info.formulae = installedResult.formulae
+                    info.casks = installedResult.casks
+                    info.outdatedFormulae = outdatedResult.formulae
+                    info.outdatedCasks = outdatedResult.casks
+                    info.services = servicesResult
+                    info.brewConfig = configResult
+                    info.taps = tapsResult
+                    info.redundantPackages = detectRedundancies(in: installedResult.formulae)
+                    let installedNames = Set(installedResult.formulae.map(\.name))
+                    info.toolPaths = await service.resolveToolPaths(for: installedNames)
+
+                    if let existing = bundle {
+                        bundle = BrewBundle(
+                            path: existing.path,
+                            displayName: existing.displayName,
+                            entries: checkBundleStatus(existing.entries)
+                        )
+                    }
+                    fetchRecentInstalls()
+                } catch {
+                    self.error = error.localizedDescription
                 }
-                fetchRecentInstalls()
-            } catch {
-                self.error = error.localizedDescription
             }
+
+            info.analytics = (try? await analyticsTask) ?? BrewAnalytics()
             isLoading = false
         }
     }

@@ -91,6 +91,46 @@ struct ContentView: View {
                 .background(.red.opacity(0.1))
             }
 
+            // Homebrew not installed
+            if !viewModel.brewInstalled {
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack(spacing: 5) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                            .font(.caption)
+                        Text("Homebrew is not installed")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                        Spacer()
+                        Button("Refresh") {
+                            viewModel.refresh()
+                        }
+                        .font(.caption)
+                        .controlSize(.small)
+                    }
+                    HStack(spacing: 4) {
+                        Text("/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"")
+                            .font(.system(size: 9, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                            .textSelection(.enabled)
+                        Spacer(minLength: 0)
+                        Button {
+                            let cmd = "/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(cmd, forType: .string)
+                        } label: {
+                            Image(systemName: "doc.on.doc")
+                                .font(.caption2)
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Copy install command")
+                    }
+                }
+                .padding(8)
+                .background(.orange.opacity(0.08))
+            }
+
             // Tab picker
             HStack(spacing: 0) {
                 ForEach(Tab.allCases, id: \.self) { tab in
