@@ -7,10 +7,26 @@ actor BrewDataService {
     // MARK: - Fetch installed packages
 
     func fetchInstalled() async throws -> (formulae: [Formula], casks: [Cask]) {
-        let data = try await process.run(["info", "--json=v2", "--installed"])
-        let json = try decoder.decode(BrewInfoJSON.self, from: data)
-        let formulae = json.formulae.map { $0.toFormula() }.sorted { $0.name < $1.name }
-        let casks = json.casks.map { $0.toCask() }.sorted { $0.token < $1.token }
+        // Fetch formulae and casks separately. A broken cask formula (e.g. one that calls
+        // a removed DSL method like `discontinued`) can cause `brew info --json=v2 --installed`
+        // to exit non-zero and return nothing. Splitting on --formula / --cask isolates that
+        // failure so formulae always load even when one cask's Ruby formula is broken.
+        async let formulaeData = process.run(["info", "--json=v2", "--installed", "--formula"])
+        async let casksData = process.runAllowingFailure(["info", "--json=v2", "--installed", "--cask"])
+
+        let fData = try await formulaeData
+        let cData = await casksData
+
+        let fJson = try decoder.decode(BrewInfoJSON.self, from: fData)
+        let formulae = fJson.formulae.map { $0.toFormula() }.sorted { $0.name < $1.name }
+
+        let casks: [Cask]
+        if let cJson = try? decoder.decode(BrewInfoJSON.self, from: cData) {
+            casks = cJson.casks.map { $0.toCask() }.sorted { $0.token < $1.token }
+        } else {
+            casks = []
+        }
+
         return (formulae, casks)
     }
 

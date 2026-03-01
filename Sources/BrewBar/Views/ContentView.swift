@@ -75,17 +75,33 @@ struct ContentView: View {
             }
 
             if let error = viewModel.error {
-                HStack {
+                HStack(alignment: .top) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundStyle(.yellow)
+                        .padding(.top, 1)
                     Text(error)
                         .font(.caption)
-                        .lineLimit(2)
+                        .textSelection(.enabled)
                     Spacer()
-                    Button("Dismiss") {
-                        viewModel.error = nil
+                    VStack(spacing: 4) {
+                        Button {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(error, forType: .string)
+                        } label: {
+                            Image(systemName: "doc.on.doc")
+                                .font(.caption2)
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Copy error")
+                        Button {
+                            viewModel.error = nil
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.caption2)
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Dismiss")
                     }
-                    .controlSize(.small)
                 }
                 .padding(6)
                 .background(.red.opacity(0.1))
