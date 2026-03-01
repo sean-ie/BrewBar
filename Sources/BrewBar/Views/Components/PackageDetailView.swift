@@ -122,7 +122,7 @@ struct PackageDetailView: View {
                                 Text(tree)
                                     .font(.system(size: 10, design: .monospaced))
                                     .foregroundStyle(.secondary)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .fixedSize(horizontal: true, vertical: false)
                                     .textSelection(.enabled)
                             }
                             .frame(maxHeight: 120)

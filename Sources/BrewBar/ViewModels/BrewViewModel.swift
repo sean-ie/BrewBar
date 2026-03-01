@@ -127,8 +127,15 @@ final class BrewViewModel {
     // MARK: - Upgrade actions
 
     func upgradeAll() {
-        performAction("Upgrading all packages...", event: (.upgrade, ["all packages"])) {
-            try await self.service.upgradeAll()
+        // Explicitly pass every outdated formula and cask by name so that casks
+        // are always included — `brew upgrade` alone skips casks in some situations.
+        let formulaeNames = info.outdatedFormulae.filter { !$0.pinned }.map(\.name)
+        let caskTokens = info.outdatedCasks.map(\.token)
+        let packages = formulaeNames + caskTokens
+        guard !packages.isEmpty else { return }
+        let label = packages.count == 1 ? packages[0] : "all \(packages.count) packages"
+        performAction("Upgrading \(label)...", event: (.upgrade, packages)) {
+            try await self.service.upgradeMultiple(formulae: formulaeNames, casks: caskTokens)
         }
     }
 

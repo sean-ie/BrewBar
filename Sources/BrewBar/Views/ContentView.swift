@@ -440,28 +440,28 @@ private struct TabButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 3) {
-                Image(systemName: tab.icon)
-                    .font(.caption2)
-                Text(tab.rawValue)
-                    .font(.caption)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                if let badge, badge > 0 {
-                    Text("\(badge)")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 1)
-                        .background(.orange, in: Capsule())
+            Text(tab.rawValue)
+                .font(.caption)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 5)
+                .frame(maxWidth: .infinity)
+                .background(isSelected ? Color.accentColor.opacity(0.15) : .clear)
+                .foregroundStyle(isSelected ? .primary : .secondary)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .contentShape(Rectangle())
+                .overlay(alignment: .topTrailing) {
+                    if let badge, badge > 0 {
+                        Text("\(badge)")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(.orange, in: Capsule())
+                            .offset(x: 4, y: -4)
+                    }
                 }
-            }
-            .padding(.horizontal, 4)
-            .padding(.vertical, 5)
-            .frame(maxWidth: .infinity)
-            .background(isSelected ? Color.accentColor.opacity(0.15) : .clear)
-            .foregroundStyle(isSelected ? .primary : .secondary)
-            .clipShape(RoundedRectangle(cornerRadius: 6))
         }
         .buttonStyle(.plain)
     }
