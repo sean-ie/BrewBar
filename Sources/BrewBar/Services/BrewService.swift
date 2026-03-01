@@ -7,18 +7,21 @@ actor BrewDataService {
     // MARK: - Fetch installed packages
 
     func fetchInstalled() async throws -> (formulae: [Formula], casks: [Cask]) {
-        // Fetch formulae and casks separately. A broken cask formula (e.g. one that calls
-        // a removed DSL method like `discontinued`) can cause `brew info --json=v2 --installed`
-        // to exit non-zero and return nothing. Splitting on --formula / --cask isolates that
-        // failure so formulae always load even when one cask's Ruby formula is broken.
-        async let formulaeData = process.run(["info", "--json=v2", "--installed", "--formula"])
+        // Run formulae and casks separately so a broken cask formula (e.g. one that calls a
+        // removed DSL method like `discontinued`) doesn't block both. brew writes valid JSON to
+        // stdout before the Ruby error appears on stderr, so we capture stdout regardless of
+        // exit code and try to decode whatever we get.
+        async let formulaeData = process.runAllowingFailure(["info", "--json=v2", "--installed", "--formula"])
         async let casksData = process.runAllowingFailure(["info", "--json=v2", "--installed", "--cask"])
 
-        let fData = try await formulaeData
-        let cData = await casksData
+        let (fData, cData) = await (formulaeData, casksData)
 
-        let fJson = try decoder.decode(BrewInfoJSON.self, from: fData)
-        let formulae = fJson.formulae.map { $0.toFormula() }.sorted { $0.name < $1.name }
+        let formulae: [Formula]
+        if let fJson = try? decoder.decode(BrewInfoJSON.self, from: fData) {
+            formulae = fJson.formulae.map { $0.toFormula() }.sorted { $0.name < $1.name }
+        } else {
+            throw BrewProcess.BrewError(message: "brew info --json=v2 --installed --formula returned no usable data")
+        }
 
         let casks: [Cask]
         if let cJson = try? decoder.decode(BrewInfoJSON.self, from: cData) {
